@@ -1,0 +1,8 @@
+{
+  "name": "CafeMenu",
+  "description": "نظام مينو إلكتروني سحابي بالكود الفريد للطاولات، إدارة الطلبات، الكاشير، الفواتير، وحساب العروض والرسوم",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
