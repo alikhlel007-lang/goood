@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -72,6 +73,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -127,6 +129,7 @@ fun CustomerMenuScreen(
     var showCartSheet by remember { mutableStateOf(false) }
     var showOrderSentDialog by remember { mutableStateOf(false) }
     var validationError by remember { mutableStateOf<String?>(null) }
+    var showFullOffersScreen by remember { mutableStateOf(false) }
 
     val customerName by viewModel.customerNameInput.collectAsState()
     val orderNotes by viewModel.orderNotesInput.collectAsState()
@@ -134,7 +137,18 @@ fun CustomerMenuScreen(
     val totalCartCount = cart.values.sumOf { it.quantity }
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF141414))) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        if (showFullOffersScreen) {
+            FullOffersAndNewItemsScreen(
+                viewModel = viewModel,
+                lang = lang,
+                visibleMenuItems = visibleMenuItems,
+                cart = cart,
+                totalCartCount = totalCartCount,
+                onBack = { showFullOffersScreen = false },
+                onOpenCart = { showCartSheet = true }
+            )
+        } else {
+            Column(modifier = Modifier.fillMaxSize()) {
             // 1. Top Action Row: Left has "cart 🛍", Right has Table selector / badge
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 Row(
@@ -262,69 +276,118 @@ fun CustomerMenuScreen(
                 }
             }
 
-            // 2. Welcome Card Banner (البانر الترحيبي كما في الصورة تماماً)
+            // 2. Special Offers & New Items Banner (اطّلع على الإضافات الجديدة والعروض والتخفيضات)
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                    .padding(horizontal = 16.dp, vertical = 5.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .clickable { showFullOffersScreen = true },
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1C)),
-                border = BorderStroke(1.dp, Color(0xFFE5A93C).copy(alpha = 0.35f))
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1C1A)),
+                border = BorderStroke(1.2.dp, Color(0xFFE5A93C).copy(alpha = 0.55f))
             ) {
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        // Left / Center: welcomeMessage pill + Slogan
-                        Column(
-                            horizontalAlignment = Alignment.End,
-                            modifier = Modifier.weight(1f)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color(0xFF2C1A06),
+                                    Color(0xFF1E1C1A),
+                                    Color(0xFF241508)
+                                )
+                            )
+                        )
+                ) {
+                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(15.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
+                            // Left side: Glowing Icon Badge
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFF262626))
-                                    .border(
-                                        BorderStroke(1.dp, Color(0xFFE5A93C).copy(alpha = 0.4f)),
-                                        RoundedCornerShape(12.dp)
-                                    )
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    .size(52.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(Color(0xFF33200D))
+                                    .border(BorderStroke(1.dp, Color(0xFFE5A93C)), RoundedCornerShape(16.dp)),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = "welcomeMessage ♡",
-                                    color = Color(0xFFE5A93C),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium
+                                Icon(
+                                    imageVector = Icons.Default.LocalOffer,
+                                    contentDescription = null,
+                                    tint = Color(0xFFE5A93C),
+                                    modifier = Modifier.size(26.dp)
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.width(14.dp))
 
-                            Text(
-                                text = "أجواء مودرن ونكهات لا تُنسى",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                ),
-                                textAlign = TextAlign.End
-                            )
+                            // Right side: Arabic title & badges
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                horizontalAlignment = Alignment.End
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    val discountCount = visibleMenuItems.count { it.hasDiscount }
+                                    if (discountCount > 0) {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(Color(0xFFE53935))
+                                                .padding(horizontal = 7.dp, vertical = 3.dp)
+                                        ) {
+                                            Text(
+                                                text = "$discountCount تخفيضات نشطة 🔥",
+                                                color = Color.White,
+                                                fontSize = 10.5.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(Color(0xFFE5A93C))
+                                            .padding(horizontal = 7.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            text = "عروض وجديد ✨",
+                                            color = Color(0xFF141414),
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Text(
+                                    text = "اطّلع على الإضافات الجديدة والعروض والتخفيضات",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        fontSize = 14.sp
+                                    ),
+                                    textAlign = TextAlign.End
+                                )
+
+                                Spacer(modifier = Modifier.height(3.dp))
+
+                                Text(
+                                    text = "أشهى النكهات المضافة حديثاً وأقوى الخصومات • اضغط للتصفح",
+                                    color = Color(0xFFCCCCCC),
+                                    fontSize = 11.5.sp,
+                                    textAlign = TextAlign.End
+                                )
+                            }
                         }
-
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        // Right side: Coffee Cup Icon Badge
-                        CafeIconBadge(
-                            iconName = currentCafe?.logoIconName ?: "coffee",
-                            customImageUri = currentCafe?.logoCustomUri,
-                            size = 54.dp,
-                            iconSize = 32.dp,
-                            containerColor = Color(0xFF262626),
-                            iconColor = Color(0xFFE5A93C)
-                        )
                     }
                 }
             }
@@ -533,6 +596,7 @@ fun CustomerMenuScreen(
                 }
             }
         }
+        }
 
         // Cart Modal BottomSheet
         if (showCartSheet) {
@@ -624,6 +688,8 @@ fun MenuItemRegularCard(
     item: MenuItemEntity,
     cartQty: Int,
     lang: AppLanguage,
+    badgeText: String? = null,
+    badgeColor: Color? = null,
     onAdd: () -> Unit,
     onRemove: () -> Unit
 ) {
@@ -664,18 +730,35 @@ fun MenuItemRegularCard(
                         )
 
                         if (item.hasDiscount) {
+                            val pct = item.discountPercentage ?: (((item.originalPrice - (item.discountedPrice ?: item.originalPrice)) / item.originalPrice) * 100).toInt()
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.TopStart)
                                     .padding(3.dp)
-                                    .clip(RoundedCornerShape(5.dp))
+                                    .clip(RoundedCornerShape(6.dp))
                                     .background(Color(0xFFE53935))
-                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    text = "${item.discountPercentage ?: ""}%",
+                                    text = "$pct%",
                                     color = Color.White,
-                                    fontSize = 9.sp,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        } else if (badgeText != null) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .padding(3.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(badgeColor ?: Color(0xFF2E7D32))
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = badgeText,
+                                    color = Color.White,
+                                    fontSize = 9.5.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -741,17 +824,44 @@ fun MenuItemRegularCard(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    val effectivePrice = if (item.hasDiscount && item.discountedPrice != null) item.discountedPrice else item.originalPrice
-                    Text(
-                        text = "${formatArabicNumeralsPrice(effectivePrice)} د.ع",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFE5A93C),
-                            fontSize = 15.sp
-                        ),
-                        textAlign = TextAlign.End,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    if (item.hasDiscount && item.discountedPrice != null) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.End,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            // Current discounted price
+                            Text(
+                                text = "${formatArabicNumeralsPrice(item.discountedPrice)} د.ع",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFE5A93C),
+                                    fontSize = 16.sp
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            // Old price struck through
+                            Text(
+                                text = "${formatArabicNumeralsPrice(item.originalPrice)} د.ع",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = Color(0xFF888888),
+                                    fontSize = 12.sp,
+                                    textDecoration = TextDecoration.LineThrough
+                                )
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "${formatArabicNumeralsPrice(item.originalPrice)} د.ع",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFE5A93C),
+                                fontSize = 15.sp
+                            ),
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
         }
@@ -1108,6 +1218,373 @@ fun CartSheetContent(
             }
 
             Spacer(modifier = Modifier.height(12.dp))
+        }
+    }
+}
+
+@Composable
+fun FullOffersAndNewItemsScreen(
+    viewModel: CafeViewModel,
+    lang: AppLanguage,
+    visibleMenuItems: List<MenuItemEntity>,
+    cart: Map<String, com.example.ui.viewmodel.CartItem>,
+    totalCartCount: Int,
+    onBack: () -> Unit,
+    onOpenCart: () -> Unit
+) {
+    var selectedFilterIndex by remember { mutableIntStateOf(0) } // 0: All, 1: Discounts, 2: New Items
+
+    val discountedItems = remember(visibleMenuItems) {
+        visibleMenuItems.filter { it.hasDiscount }
+    }
+    val newItems = remember(visibleMenuItems) {
+        // Take newest items by ID descending, up to 10 items
+        visibleMenuItems.sortedByDescending { it.id }.take(10)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF141414))
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Top Bar with Elegant Back Button and Cart indicator
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF1A1A1A))
+                    .border(BorderStroke(1.dp, Color(0xFF2A2A2A)))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Cart button if items in cart
+                    if (totalCartCount > 0) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFE5A93C))
+                                .clickable { onOpenCart() }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "الطلب ($totalCartCount)",
+                                    color = Color(0xFF141414),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ShoppingBag,
+                                    contentDescription = "Cart",
+                                    tint = Color(0xFF141414),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.size(36.dp))
+                    }
+
+                    // Title
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "العروض والإضافات الجديدة",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                fontSize = 15.sp
+                            )
+                        )
+                        Text(
+                            text = "أشهى الأصناف بأفضل الأسعار",
+                            fontSize = 10.5.sp,
+                            color = Color(0xFFE5A93C)
+                        )
+                    }
+
+                    // Elegant Back Button (زر أنيق للعودة)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFF262626))
+                            .border(
+                                BorderStroke(1.2.dp, Color(0xFFE5A93C).copy(alpha = 0.75f)),
+                                RoundedCornerShape(14.dp)
+                            )
+                            .clickable { onBack() }
+                            .padding(horizontal = 12.dp, vertical = 7.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "رجوع",
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                fontSize = 12.5.sp
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "الرجوع",
+                                tint = Color(0xFFE5A93C),
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Scrollable Content
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+                contentPadding = PaddingValues(top = 14.dp, bottom = 36.dp)
+            ) {
+                // Hero Banner
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+                        border = BorderStroke(1.2.dp, Color(0xFFE5A93C).copy(alpha = 0.5f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(
+                                            Color(0xFF38230A),
+                                            Color(0xFF1E1E1E),
+                                            Color(0xFF2E1712)
+                                        )
+                                    )
+                                )
+                                .padding(18.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.End
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFFE5A93C))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "مهرجان العروض والجديد ✨",
+                                        color = Color(0xFF141414),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text(
+                                    text = "اطّلع على الإضافات الجديدة والتخفيضات",
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        fontSize = 17.sp
+                                    ),
+                                    textAlign = TextAlign.End
+                                )
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Text(
+                                    text = "نقدم لك تجربة استثنائية مع أحدث أصناف المينو وأقوى العروض المخفضة المحضرة بعناية خاصة.",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = Color(0xFFCCCCCC),
+                                        fontSize = 11.5.sp
+                                    ),
+                                    textAlign = TextAlign.End
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Filter Tabs (الكل، التخفيضات، الجديد)
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val filterTabs = listOf(
+                            "الكل",
+                            "🔥 التخفيضات (${discountedItems.size})",
+                            "✨ الجديد (${newItems.size})"
+                        )
+                        filterTabs.forEachIndexed { index, title ->
+                            val isSelected = selectedFilterIndex == index
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isSelected) Color(0xFFE5A93C) else Color(0xFF222222))
+                                    .border(
+                                        BorderStroke(1.dp, if (isSelected) Color(0xFFE5A93C) else Color(0xFF383838)),
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .clickable { selectedFilterIndex = index }
+                                    .padding(vertical = 9.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = title,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) Color(0xFF141414) else Color(0xFFCCCCCC)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // SECTION 1: التخفيضات والعروض
+                if (selectedFilterIndex == 0 || selectedFilterIndex == 1) {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp, bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0xFFE53935).copy(alpha = 0.2f))
+                                    .padding(horizontal = 7.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "${discountedItems.size} أصناف",
+                                    color = Color(0xFFEF5350),
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "🔥 التخفيضات والعروض الحصرية",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    fontSize = 15.sp
+                                )
+                            )
+                        }
+                    }
+
+                    if (discountedItems.isEmpty()) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+                                border = BorderStroke(1.dp, Color(0xFF383838))
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(24.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            imageVector = Icons.Default.LocalOffer,
+                                            contentDescription = null,
+                                            tint = Color(0xFF666666),
+                                            modifier = Modifier.size(36.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "لا توجد مواد مخفضة حالياً",
+                                            color = Color(0xFFAAAAAA),
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            text = "ترقبوا إطلاق أقوى التخفيضات قريباً!",
+                                            color = Color(0xFF777777),
+                                            fontSize = 11.5.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        items(discountedItems) { item ->
+                            val cartItem = cart[item.id.toString()]
+                            MenuItemRegularCard(
+                                item = item,
+                                cartQty = cartItem?.quantity ?: 0,
+                                lang = lang,
+                                onAdd = { viewModel.addToCart(item) },
+                                onRemove = { viewModel.decreaseQuantity(item) }
+                            )
+                        }
+                    }
+                }
+
+                // SECTION 2: الإضافات الجديدة
+                if (selectedFilterIndex == 0 || selectedFilterIndex == 2) {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 16.dp, bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0xFF2E7D32).copy(alpha = 0.25f))
+                                    .padding(horizontal = 7.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "${newItems.size} أصناف مضافة",
+                                    color = Color(0xFF81C784),
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "✨ أحدث الإضافات لقائمة الطعام",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    fontSize = 15.sp
+                                )
+                            )
+                        }
+                    }
+
+                    items(newItems) { item ->
+                        val cartItem = cart[item.id.toString()]
+                        MenuItemRegularCard(
+                            item = item,
+                            cartQty = cartItem?.quantity ?: 0,
+                            lang = lang,
+                            badgeText = if (!item.hasDiscount) "جديد ✨" else null,
+                            badgeColor = Color(0xFF2E7D32),
+                            onAdd = { viewModel.addToCart(item) },
+                            onRemove = { viewModel.decreaseQuantity(item) }
+                        )
+                    }
+                }
+            }
         }
     }
 }

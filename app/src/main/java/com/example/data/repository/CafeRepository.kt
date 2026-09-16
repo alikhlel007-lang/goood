@@ -128,9 +128,16 @@ class CafeRepository(private val cafeDao: CafeDao) {
         } else if (newPrice != null) {
             roundTo250IQD(newPrice)
         } else null
+
+        val computedPct = if (percentage != null && percentage > 0) {
+            percentage
+        } else if (discounted != null && target.originalPrice > 0 && discounted < target.originalPrice) {
+            (((target.originalPrice - discounted) / target.originalPrice) * 100).toInt()
+        } else null
+
         val updated = target.copy(
             discountedPrice = discounted,
-            discountPercentage = percentage,
+            discountPercentage = computedPct,
             isSpecialOffer = isSpecialOffer
         )
         cafeDao.updateMenuItem(updated)

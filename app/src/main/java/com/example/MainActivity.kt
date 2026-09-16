@@ -177,32 +177,6 @@ fun MainAppContent(viewModel: CafeViewModel) {
                                                     modifier = Modifier.size(22.dp)
                                                 )
                                             }
-
-                                            Spacer(modifier = Modifier.width(8.dp))
-
-                                            IconButton(
-                                                onClick = { showThemeDialog = true },
-                                                modifier = Modifier.size(36.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Palette,
-                                                    contentDescription = "Theme",
-                                                    tint = Color(0xFFE5A93C).copy(alpha = 0.8f),
-                                                    modifier = Modifier.size(20.dp)
-                                                )
-                                            }
-
-                                            IconButton(
-                                                onClick = { viewModel.logout() },
-                                                modifier = Modifier.size(36.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.ExitToApp,
-                                                    contentDescription = Strings.get("logout", currentLang),
-                                                    tint = Color(0xFFE57373),
-                                                    modifier = Modifier.size(20.dp)
-                                                )
-                                            }
                                         }
 
                                         // RIGHT SIDE: Capsule Tabs [menu | cashier]
@@ -275,7 +249,7 @@ fun MainAppContent(viewModel: CafeViewModel) {
                                                     }
                                                     Spacer(modifier = Modifier.width(6.dp))
                                                     Text(
-                                                        text = "إدارة الكاشير والطلبات",
+                                                        text = "الكاشير",
                                                         fontWeight = FontWeight.Bold,
                                                         fontSize = 12.sp,
                                                         color = if (isCashierActive) Color(0xFF141414) else Color(0xFFCCCCCC)
