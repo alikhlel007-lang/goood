@@ -317,9 +317,21 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun removeDiscount(itemId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.applyDiscountToItem(itemId, null, null, false)
+        }
+    }
+
     fun applyDiscountToCategory(categoryId: String, percentage: Int?, isSpecialOffer: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.applyDiscountToCategory(categoryId, percentage, isSpecialOffer)
+        }
+    }
+
+    fun removeCategoryDiscount(categoryId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.applyDiscountToCategory(categoryId, null, false)
         }
     }
 

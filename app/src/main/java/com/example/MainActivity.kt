@@ -275,9 +275,9 @@ fun MainAppContent(viewModel: CafeViewModel) {
                                                     }
                                                     Spacer(modifier = Modifier.width(6.dp))
                                                     Text(
-                                                        text = "كاشير",
+                                                        text = "إدارة الكاشير والطلبات",
                                                         fontWeight = FontWeight.Bold,
-                                                        fontSize = 12.5.sp,
+                                                        fontSize = 12.sp,
                                                         color = if (isCashierActive) Color(0xFF141414) else Color(0xFFCCCCCC)
                                                     )
                                                 }

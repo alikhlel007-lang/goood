@@ -27,6 +27,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -45,6 +47,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -140,85 +144,118 @@ fun CustomerMenuScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // LEFT SIDE: Cart Button matching screenshot
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xFFE5A93C))
-                            .clickable { showCartSheet = true }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = if (totalCartCount > 0) "cart ($totalCartCount)" else "cart",
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF141414),
-                                fontSize = 13.sp
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Icon(
-                                imageVector = Icons.Default.ShoppingBag,
-                                contentDescription = "Cart",
-                                tint = Color(0xFF141414),
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-
-                    // RIGHT SIDE: Table indicator or Table selection pills
-                    if (isWaiterMode || onTableChangeRequested != null) {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                    // LEFT SIDE: Order / Cart Button (only if customer ordered items)
+                    if (totalCartCount > 0) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color(0xFFE5A93C))
+                                .clickable { showCartSheet = true }
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
                         ) {
-                            items(tables) { table ->
-                                val isSelected = table.tableNumber == effectiveTableNum
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(if (isSelected) Color(0xFFE5A93C) else Color(0xFF222222))
-                                        .border(
-                                            BorderStroke(1.dp, if (isSelected) Color(0xFFE5A93C) else Color(0xFF383838)),
-                                            RoundedCornerShape(10.dp)
-                                        )
-                                        .clickable {
-                                            viewModel.setCustomerTable(table.tableNumber)
-                                            onTableChangeRequested?.invoke(table.tableNumber)
-                                        }
-                                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                                ) {
-                                    Text(
-                                        text = "#${table.tableNumber}",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp,
-                                        color = if (isSelected) Color(0xFF141414) else Color(0xFFCCCCCC)
-                                    )
-                                }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "الطلب ($totalCartCount)",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF141414),
+                                    fontSize = 13.sp
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ShoppingBag,
+                                    contentDescription = "Cart",
+                                    tint = Color(0xFF141414),
+                                    modifier = Modifier.size(16.dp)
+                                )
                             }
                         }
                     } else {
-                        // Customer Table Badge
+                        Spacer(modifier = Modifier.width(1.dp))
+                    }
+
+                    // RIGHT SIDE: Table Dropdown Selector (اختيار الطاولة من قائمة منسدلة)
+                    var tableDropdownExpanded by remember { mutableStateOf(false) }
+
+                    Box {
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFF222222))
-                                .border(BorderStroke(1.dp, Color(0xFF383838)), RoundedCornerShape(10.dp))
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                .border(
+                                    BorderStroke(1.dp, Color(0xFFE5A93C).copy(alpha = 0.8f)),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .clickable { tableDropdownExpanded = true }
+                                .padding(horizontal = 12.dp, vertical = 7.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Default.TableRestaurant,
                                     contentDescription = null,
                                     tint = Color(0xFFE5A93C),
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "${Strings.get("table", lang)} #$effectiveTableNum",
+                                    text = if (effectiveTableNum > 0) "طاولة #$effectiveTableNum (تغيير)" else "اختيار الطاولة",
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     color = Color(0xFFE5A93C)
                                 )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = null,
+                                    tint = Color(0xFFE5A93C),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = tableDropdownExpanded,
+                            onDismissRequest = { tableDropdownExpanded = false },
+                            modifier = Modifier
+                                .background(Color(0xFF1E1E1E))
+                                .border(BorderStroke(1.dp, Color(0xFF383838)), RoundedCornerShape(8.dp))
+                        ) {
+                            if (tables.isEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text("لا توجد طاولات", color = Color(0xFFAAAAAA)) },
+                                    onClick = { tableDropdownExpanded = false }
+                                )
+                            } else {
+                                tables.forEach { table ->
+                                    val isSelected = table.tableNumber == effectiveTableNum
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "طاولة #${table.tableNumber}${if (table.tableType.isNotBlank()) " (${table.tableType})" else ""}",
+                                                    color = if (isSelected) Color(0xFFE5A93C) else Color.White,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                )
+                                                if (isSelected) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Check,
+                                                        contentDescription = null,
+                                                        tint = Color(0xFFE5A93C),
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        onClick = {
+                                            viewModel.setCustomerTable(table.tableNumber)
+                                            onTableChangeRequested?.invoke(table.tableNumber)
+                                            tableDropdownExpanded = false
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -417,7 +454,10 @@ fun CustomerMenuScreen(
                                 item = item,
                                 cartQty = cartItem?.quantity ?: 0,
                                 lang = lang,
-                                onAdd = { viewModel.addToCart(item) },
+                                onAdd = {
+                                    viewModel.addToCart(item)
+                                    showCartSheet = true
+                                },
                                 onRemove = { viewModel.decreaseQuantity(item) }
                             )
                         }
@@ -485,44 +525,11 @@ fun CustomerMenuScreen(
                                 lang = lang,
                                 onAddToCart = {
                                     viewModel.addToCart(offerItem)
-                                    Toast.makeText(context, "تمت الإضافة للسلة!", Toast.LENGTH_SHORT).show()
+                                    showCartSheet = true
                                 }
                             )
                         }
                     }
-                }
-            }
-        }
-
-        // Floating Cart Button
-        if (totalCartCount > 0) {
-            FloatingActionButton(
-                onClick = { showCartSheet = true },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(20.dp)
-                    .testTag("floating_cart_button"),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    BadgedBox(
-                        badge = {
-                            Badge(containerColor = MaterialTheme.colorScheme.error) {
-                                Text("$totalCartCount")
-                            }
-                        }
-                    ) {
-                        Icon(Icons.Default.ShoppingBag, contentDescription = "Cart")
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "${cartTotal.toInt()} ${Strings.get("iqd", lang)}",
-                        fontWeight = FontWeight.Bold
-                    )
                 }
             }
         }
@@ -677,54 +684,25 @@ fun MenuItemRegularCard(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // order + button
-                    if (cartQty > 0) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFF282828))
-                                .border(BorderStroke(1.dp, Color(0xFFE5A93C)), RoundedCornerShape(10.dp))
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                        ) {
-                            IconButton(
-                                onClick = onRemove,
-                                modifier = Modifier.size(24.dp)
-                            ) {
-                                Icon(Icons.Default.Remove, contentDescription = "Decrease", tint = Color(0xFFE5A93C), modifier = Modifier.size(14.dp))
-                            }
-                            Text(
-                                text = "$cartQty",
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(horizontal = 4.dp)
+                    // order + button (adds to cart and displays cart sheet)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (cartQty > 0) Color(0xFFE5A93C) else Color(0xFF222222))
+                            .border(
+                                BorderStroke(1.dp, Color(0xFFE5A93C).copy(alpha = 0.9f)),
+                                RoundedCornerShape(10.dp)
                             )
-                            IconButton(
-                                onClick = onAdd,
-                                modifier = Modifier.size(24.dp)
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = "Increase", tint = Color(0xFFE5A93C), modifier = Modifier.size(14.dp))
-                            }
-                        }
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFF222222))
-                                .border(BorderStroke(1.dp, Color(0xFFE5A93C).copy(alpha = 0.8f)), RoundedCornerShape(10.dp))
-                                .clickable { onAdd() }
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "order +",
-                                color = Color(0xFFE5A93C),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
-                            )
-                        }
+                            .clickable { onAdd() }
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (cartQty > 0) "اوردر ($cartQty) +" else "اوردر +",
+                            color = if (cartQty > 0) Color(0xFF141414) else Color(0xFFE5A93C),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
                     }
                 }
 
@@ -962,12 +940,44 @@ fun CartSheetContent(
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { onDecrease(cartItem.item) }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Default.Remove, contentDescription = null, modifier = Modifier.size(16.dp))
+                            // Decrease button (تقليل الطلبات من داخل السلة)
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (cartItem.quantity == 1) Color(0xFFE53935).copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface)
+                                    .border(BorderStroke(1.dp, if (cartItem.quantity == 1) Color(0xFFE53935) else Color(0xFFE5A93C)), RoundedCornerShape(8.dp))
+                                    .clickable { onDecrease(cartItem.item) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (cartItem.quantity == 1) Icons.Default.Delete else Icons.Default.Remove,
+                                    contentDescription = "تقليل الطلب",
+                                    tint = if (cartItem.quantity == 1) Color(0xFFE53935) else Color(0xFFE5A93C),
+                                    modifier = Modifier.size(16.dp)
+                                )
                             }
-                            Text("${cartItem.quantity}", fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp))
-                            IconButton(onClick = { onIncrease(cartItem.item) }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Text(
+                                text = "${cartItem.quantity}",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                modifier = Modifier.padding(horizontal = 10.dp)
+                            )
+                            // Increase button
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFE5A93C))
+                                    .clickable { onIncrease(cartItem.item) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "زيادة الطلب",
+                                    tint = Color(0xFF141414),
+                                    modifier = Modifier.size(16.dp)
+                                )
                             }
                         }
                     }

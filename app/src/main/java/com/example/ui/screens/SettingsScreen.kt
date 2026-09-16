@@ -5,7 +5,9 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,10 +25,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.ArrowBack
@@ -37,8 +42,11 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Percent
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RestaurantMenu
@@ -65,9 +73,12 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -76,8 +87,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.CategoryEntity
@@ -1714,7 +1730,7 @@ fun TablesManagementScreen(
     }
 }
 
-// 4. Offers & Discounts Manager
+// 4. Offers & Discounts Manager (مطابق تماماً للتصميم في لقطة الشاشة)
 @Composable
 fun OffersManagementScreen(
     viewModel: CafeViewModel,
@@ -1725,220 +1741,759 @@ fun OffersManagementScreen(
     val categories by viewModel.categories.collectAsState()
     val menuItems by viewModel.menuItems.collectAsState()
 
-    var discountTarget by remember { mutableIntStateOf(0) } // 0: Single Item, 1: Whole Category
-    var selectedItemId by remember { mutableStateOf(menuItems.firstOrNull()?.id ?: "") }
-    var selectedCategoryId by remember { mutableStateOf(categories.firstOrNull()?.id ?: "") }
+    // 0: تحديد مواد من أقسام مختلفة, 1: تخفيض قسم كامل
+    var selectedMode by remember { mutableIntStateOf(0) }
 
-    var discountType by remember { mutableIntStateOf(0) } // 0: Percentage, 1: Fixed Price
+    // Category filter: null for "الكل" or categoryId
+    var filterCategoryId by remember { mutableStateOf<String?>(null) }
+
+    // Multi-selection of item IDs (default selects the first item or user clicks)
+    val selectedItemIds = remember { mutableStateListOf<String>() }
+
+    // Discount method: 0 = Percentage (%), 1 = Manual price (د.ع) (default 1 as in screenshot)
+    var discountMethod by remember { mutableIntStateOf(1) }
+
+    // Percentage input (for percentage mode)
     var percentageInput by remember { mutableStateOf("20") }
-    var fixedPriceInput by remember { mutableStateOf("") }
-    var showInOffersPage by remember { mutableStateOf(true) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState())
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-            }
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = Strings.get("offers_management", lang),
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-            )
+    // Per-item manual prices map: itemId -> price string
+    val manualPrices = remember { mutableStateMapOf<String, String>() }
+
+    // For whole category mode
+    var selectedWholeCategoryId by remember { mutableStateOf(categories.firstOrNull()?.id ?: "") }
+    var categoryPercentInput by remember { mutableStateOf("15") }
+
+    // Filtered items list
+    val visibleItems = remember(menuItems, filterCategoryId) {
+        if (filterCategoryId == null) {
+            menuItems
+        } else {
+            menuItems.filter { it.categoryId == filterCategoryId }
         }
+    }
 
-        Spacer(modifier = Modifier.height(14.dp))
+    // Initialize selected item on start if empty
+    androidx.compose.runtime.LaunchedEffect(menuItems) {
+        if (selectedItemIds.isEmpty() && menuItems.isNotEmpty()) {
+            val first = menuItems.first()
+            selectedItemIds.add(first.id)
+            val initialPrice = (first.discountedPrice ?: (first.originalPrice * 0.8)).toInt().toString()
+            manualPrices[first.id] = initialPrice
+        }
+    }
 
-        // Target Selector: Single Item vs Whole Category
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF141414))
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = Strings.get("discount_target", lang),
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.weight(1f).clickable { discountTarget = 0 },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(selected = discountTarget == 0, onClick = { discountTarget = 0 })
-                        Text(Strings.get("discount_single_item", lang), fontWeight = FontWeight.SemiBold)
-                    }
-                    Row(
-                        modifier = Modifier.weight(1f).clickable { discountTarget = 1 },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(selected = discountTarget == 1, onClick = { discountTarget = 1 })
-                        Text(Strings.get("discount_whole_section", lang), fontWeight = FontWeight.SemiBold)
+            // 1. Top Header Bar (الترويسة العلوية كما في لقطة الشاشة)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Right Button: رجوع للإعدادات ->
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFF1E1E1E))
+                        .border(BorderStroke(1.dp, Color(0xFFE5A93C).copy(alpha = 0.5f)), RoundedCornerShape(20.dp))
+                        .clickable { onBack() }
+                        .padding(horizontal = 14.dp, vertical = 7.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "رجوع للإعدادات",
+                            color = Color(0xFFE5A93C),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = Color(0xFFE5A93C),
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                // Center Title: العروض والتخفيضات
+                Text(
+                    text = "العروض والتخفيضات",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
 
-                if (discountTarget == 0) {
-                    Text("اختر المادة المراد تخفيضها:", style = MaterialTheme.typography.bodySmall)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(menuItems) { item ->
-                            val isSelected = selectedItemId == item.id
+                // Left Button: Circular Close (X)
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF222222))
+                        .clickable { onBack() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // Scrollable Content
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 16.dp)
+            ) {
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // 2. Mode Selector (بطاقتان للاختيار كما في الصورة)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF1E1E1E))
+                        .border(BorderStroke(1.dp, Color(0xFF2E2E2E)), RoundedCornerShape(16.dp))
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Option Right: تخفيض قسم كامل
+                    val isCategoryMode = selectedMode == 1
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isCategoryMode) Color(0xFFE5A93C) else Color.Transparent)
+                            .clickable { selectedMode = 1 }
+                            .padding(vertical = 12.dp, horizontal = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Layers,
+                                contentDescription = null,
+                                tint = if (isCategoryMode) Color(0xFF141414) else Color(0xFFCCCCCC),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "تخفيض قسم كامل",
+                                color = if (isCategoryMode) Color(0xFF141414) else Color(0xFFCCCCCC),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+
+                    // Option Left: تحديد مواد من أقسام مختلفة (نشط في الصورة)
+                    val isItemMode = selectedMode == 0
+                    Box(
+                        modifier = Modifier
+                            .weight(1.1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isItemMode) Color(0xFFE5A93C) else Color.Transparent)
+                            .clickable { selectedMode = 0 }
+                            .padding(vertical = 12.dp, horizontal = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.LocalOffer,
+                                contentDescription = null,
+                                tint = if (isItemMode) Color(0xFF141414) else Color(0xFFCCCCCC),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "تحديد مواد من أقسام مختلفة",
+                                color = if (isItemMode) Color(0xFF141414) else Color(0xFFCCCCCC),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                if (selectedMode == 0) {
+                    // MODE 0: تحديد مواد من أقسام مختلفة (المطابق للصورة تماماً)
+
+                    // 3. Filter Bar (تصفية: الكل + الأقسام)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "تصفية:",
+                            color = Color(0xFFAAAAAA),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Chip "الكل (count)"
+                            item {
+                                val isAllSelected = filterCategoryId == null
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(if (isAllSelected) Color(0xFFE5A93C) else Color(0xFF222222))
+                                        .border(BorderStroke(1.dp, if (isAllSelected) Color(0xFFE5A93C) else Color(0xFF383838)), RoundedCornerShape(16.dp))
+                                        .clickable { filterCategoryId = null }
+                                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = "الكل (${menuItems.size})",
+                                        color = if (isAllSelected) Color(0xFF141414) else Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+
+                            // Category chips
+                            items(categories) { cat ->
+                                val isSelected = filterCategoryId == cat.id
+                                val iconPrefix = when {
+                                    cat.name.contains("ساخنة") -> "☕ "
+                                    cat.name.contains("باردة") -> "🍹 "
+                                    cat.name.contains("حلويات") -> "🍰 "
+                                    cat.name.contains("وجبات") -> "🍔 "
+                                    else -> "☕ "
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(if (isSelected) Color(0xFFE5A93C) else Color(0xFF222222))
+                                        .border(BorderStroke(1.dp, if (isSelected) Color(0xFFE5A93C) else Color(0xFF383838)), RoundedCornerShape(16.dp))
+                                        .clickable { filterCategoryId = cat.id }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = "$iconPrefix${cat.name}",
+                                        color = if (isSelected) Color(0xFF141414) else Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // 4. Quick Actions Row (تحديد الكل المعروض / إلغاء التحديد)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "تحديد الكل المعروض",
+                            color = Color(0xFFE5A93C),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            modifier = Modifier.clickable {
+                                visibleItems.forEach { item ->
+                                    if (!selectedItemIds.contains(item.id)) {
+                                        selectedItemIds.add(item.id)
+                                    }
+                                    if (!manualPrices.containsKey(item.id)) {
+                                        manualPrices[item.id] = (item.discountedPrice ?: (item.originalPrice * 0.8)).toInt().toString()
+                                    }
+                                }
+                            }
+                        )
+
+                        Text(
+                            text = "إلغاء التحديد (${selectedItemIds.size})",
+                            color = Color(0xFFE53935),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            modifier = Modifier.clickable {
+                                selectedItemIds.clear()
+                            }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // 5. Discount Method Box ("طريقة تطبيق التخفيض:")
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+                        border = BorderStroke(1.dp, Color(0xFF333333))
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(
+                                text = "طريقة تطبيق التخفيض:",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFF141414))
+                                    .border(BorderStroke(1.dp, Color(0xFF282828)), RoundedCornerShape(12.dp))
+                                    .padding(4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                // Right: نسبة مئوية (%)
+                                val isPercent = discountMethod == 0
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(if (isPercent) Color(0xFFE5A93C) else Color.Transparent)
+                                        .clickable { discountMethod = 0 }
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Percent,
+                                            contentDescription = null,
+                                            tint = if (isPercent) Color(0xFF141414) else Color(0xFFAAAAAA),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "% نسبة مئوية (%)",
+                                            color = if (isPercent) Color(0xFF141414) else Color(0xFFAAAAAA),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
+
+                                // Left: تعديل السعر يدوياً (د.ع) - نشط في الصورة
+                                val isManual = discountMethod == 1
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(if (isManual) Color(0xFFE5A93C) else Color.Transparent)
+                                        .clickable { discountMethod = 1 }
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Payments,
+                                            contentDescription = null,
+                                            tint = if (isManual) Color(0xFF141414) else Color(0xFFAAAAAA),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "تعديل السعر يدوياً (د.ع)",
+                                            color = if (isManual) Color(0xFF141414) else Color(0xFFAAAAAA),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.5.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // 6. Items List (قائمة المواد القابلة للتحديد كما في الصورة تماماً)
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(bottom = 16.dp)
+                    ) {
+                        items(visibleItems) { item ->
+                            val isSelected = selectedItemIds.contains(item.id)
+                            val isItemDiscounted = item.discountedPrice != null
+
                             Card(
-                                modifier = Modifier.clickable { selectedItemId = item.id },
-                                shape = RoundedCornerShape(10.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        if (isSelected) {
+                                            selectedItemIds.remove(item.id)
+                                        } else {
+                                            selectedItemIds.add(item.id)
+                                            if (!manualPrices.containsKey(item.id)) {
+                                                manualPrices[item.id] = (item.discountedPrice ?: (item.originalPrice * 0.8)).toInt().toString()
+                                            }
+                                        }
+                                    },
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1C)),
+                                border = BorderStroke(
+                                    if (isSelected) 1.5.dp else 1.dp,
+                                    if (isSelected) Color(0xFFE5A93C) else Color(0xFF2E2E2E)
                                 )
                             ) {
-                                Column(modifier = Modifier.padding(8.dp)) {
-                                    Text(item.name, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                    Text("${item.originalPrice.toInt()} د.ع", fontSize = 10.sp)
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // Checkbox on the right
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(if (isSelected) Color(0xFFE5A93C) else Color(0xFF141414))
+                                                .border(
+                                                    BorderStroke(1.5.dp, if (isSelected) Color(0xFFE5A93C) else Color(0xFF555555)),
+                                                    RoundedCornerShape(6.dp)
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (isSelected) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFF141414),
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.width(12.dp))
+
+                                        // Item Thumbnail
+                                        Box(
+                                            modifier = Modifier
+                                                .size(54.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(Color(0xFF282828))
+                                        ) {
+                                            CafeIconBadge(
+                                                iconName = item.iconName,
+                                                customImageUri = item.customImageUri,
+                                                size = 54.dp,
+                                                containerColor = Color(0xFF282828)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.width(12.dp))
+
+                                        // Item Name and Price
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = item.name,
+                                                color = Color.White,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            if (isItemDiscounted) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(
+                                                        text = "${item.discountedPrice?.toInt()} د.ع",
+                                                        color = Color(0xFFE5A93C),
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 13.sp
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text(
+                                                        text = "${item.originalPrice.toInt()} د.ع",
+                                                        textDecoration = TextDecoration.LineThrough,
+                                                        color = Color(0xFF888888),
+                                                        fontSize = 11.5.sp
+                                                    )
+                                                }
+                                            } else {
+                                                Text(
+                                                    text = "${item.originalPrice.toInt()} د.ع",
+                                                    color = Color(0xFFE5A93C),
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 13.sp
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // If this item is selected AND discountMethod is manual price:
+                                    // Dedicated input box matching the screenshot!
+                                    if (isSelected && discountMethod == 1) {
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Divider(color = Color(0xFF2C2C2C))
+                                        Spacer(modifier = Modifier.height(10.dp))
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Start
+                                        ) {
+                                            Text(
+                                                text = "السعر المخفض:",
+                                                color = Color(0xFFE5A93C),
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.5.sp
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(100.dp)
+                                                    .height(36.dp)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(Color(0xFF141414))
+                                                    .border(BorderStroke(1.dp, Color(0xFFE5A93C)), RoundedCornerShape(8.dp))
+                                                    .padding(horizontal = 8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                BasicTextField(
+                                                    value = manualPrices[item.id] ?: "${(item.discountedPrice ?: (item.originalPrice * 0.8)).toInt()}",
+                                                    onValueChange = { manualPrices[item.id] = it },
+                                                    textStyle = TextStyle(
+                                                        color = Color(0xFFE5A93C),
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 14.sp,
+                                                        textAlign = TextAlign.Center
+                                                    ),
+                                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                                    singleLine = true
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = "د.ع",
+                                                color = Color(0xFFCCCCCC),
+                                                fontSize = 12.sp
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 } else {
-                    Text("اختر القسم الكامل المراد تخفيضه:", style = MaterialTheme.typography.bodySmall)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(categories) { cat ->
-                            val isSelected = selectedCategoryId == cat.id
-                            Card(
-                                modifier = Modifier.clickable { selectedCategoryId = cat.id },
+                    // MODE 1: تخفيض قسم كامل
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+                        border = BorderStroke(1.dp, Color(0xFF333333))
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "اختر القسم الكامل المراد تخفيضه:",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(categories) { cat ->
+                                    val isSelected = selectedWholeCategoryId == cat.id
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(if (isSelected) Color(0xFFE5A93C) else Color(0xFF282828))
+                                            .border(BorderStroke(1.dp, if (isSelected) Color(0xFFE5A93C) else Color(0xFF383838)), RoundedCornerShape(12.dp))
+                                            .clickable { selectedWholeCategoryId = cat.id }
+                                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                                    ) {
+                                        Text(
+                                            text = cat.name,
+                                            color = if (isSelected) Color(0xFF141414) else Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            OutlinedTextField(
+                                value = categoryPercentInput,
+                                onValueChange = { categoryPercentInput = it },
+                                label = { Text("نسبة التخفيض للقسم كامل (مثال: 15%)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 7. Bottom Action Panel (اللوحة السفلية لتطبيق أو إلغاء التخفيض كما في الصورة)
+            if (selectedMode == 0 && selectedItemIds.isNotEmpty()) {
+                val firstSelectedItem = menuItems.firstOrNull { it.id == selectedItemIds.first() }
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1C)),
+                    border = BorderStroke(1.dp, Color(0xFFE5A93C).copy(alpha = 0.8f))
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Text(
+                            text = if (selectedItemIds.size == 1) {
+                                "تعديل سعر المادة المختارة: (${firstSelectedItem?.name ?: ""})"
+                            } else {
+                                "تعديل أسعار المواد المختارة (${selectedItemIds.size} مواد)"
+                            },
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+
+                        if (selectedItemIds.size == 1 && firstSelectedItem != null) {
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = "السعر الأصلي الحالي: ${firstSelectedItem.originalPrice.toInt()} د.ع",
+                                color = Color(0xFFAAAAAA),
+                                fontSize = 11.5.sp
+                            )
+                        }
+
+                        if (discountMethod == 0) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = percentageInput,
+                                onValueChange = { percentageInput = it },
+                                label = { Text("النسبة المئوية (%)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Apply discount button
+                            Button(
+                                onClick = {
+                                    if (discountMethod == 1) {
+                                        // Manual price
+                                        selectedItemIds.forEach { id ->
+                                            val item = menuItems.firstOrNull { it.id == id } ?: return@forEach
+                                            val rawVal = manualPrices[id]?.toDoubleOrNull() ?: (item.discountedPrice ?: (item.originalPrice * 0.8))
+                                            viewModel.applyDiscountToItem(id, rawVal, null, true)
+                                        }
+                                    } else {
+                                        // Percentage
+                                        val pct = percentageInput.toIntOrNull() ?: 20
+                                        selectedItemIds.forEach { id ->
+                                            viewModel.applyDiscountToItem(id, null, pct, true)
+                                        }
+                                    }
+                                    Toast.makeText(context, "تم حفظ وتطبيق التخفيض بنجاح!", Toast.LENGTH_SHORT).show()
+                                    onBack()
+                                },
+                                modifier = Modifier.weight(1f).height(46.dp),
                                 shape = RoundedCornerShape(10.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
-                                )
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE5A93C))
                             ) {
                                 Text(
-                                    cat.name,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    text = "تطبيق وحفظ التخفيض",
+                                    color = Color(0xFF141414),
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp
+                                    fontSize = 13.sp
                                 )
+                            }
+
+                            // Cancel/remove discount button
+                            val hasDiscountedItems = selectedItemIds.any { id ->
+                                menuItems.firstOrNull { it.id == id }?.discountedPrice != null
+                            }
+                            if (hasDiscountedItems) {
+                                OutlinedButton(
+                                    onClick = {
+                                        selectedItemIds.forEach { id ->
+                                            viewModel.removeDiscount(id)
+                                        }
+                                        Toast.makeText(context, "تم إلغاء التخفيض عن المواد المحددة", Toast.LENGTH_SHORT).show()
+                                        onBack()
+                                    },
+                                    modifier = Modifier.height(46.dp),
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = BorderStroke(1.dp, Color(0xFFE53935))
+                                ) {
+                                    Text(
+                                        text = "إلغاء التخفيض",
+                                        color = Color(0xFFE53935),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Discount Method: Percentage or Fixed Price
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = Strings.get("discount_type", lang),
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(modifier = Modifier.fillMaxWidth()) {
+            } else if (selectedMode == 1) {
+                // Category bottom button
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
                     Row(
-                        modifier = Modifier.weight(1f).clickable { discountType = 0 },
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        RadioButton(selected = discountType == 0, onClick = { discountType = 0 })
-                        Text(Strings.get("discount_percentage", lang))
-                    }
-                    if (discountTarget == 0) {
-                        Row(
-                            modifier = Modifier.weight(1f).clickable { discountType = 1 },
-                            verticalAlignment = Alignment.CenterVertically
+                        Button(
+                            onClick = {
+                                val pct = categoryPercentInput.toIntOrNull() ?: 15
+                                viewModel.applyDiscountToCategory(selectedWholeCategoryId, pct, true)
+                                Toast.makeText(context, "تم تخفيض كامل مواد القسم بنجاح!", Toast.LENGTH_SHORT).show()
+                                onBack()
+                            },
+                            modifier = Modifier.weight(1f).height(46.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE5A93C))
                         ) {
-                            RadioButton(selected = discountType == 1, onClick = { discountType = 1 })
-                            Text(Strings.get("discount_fixed_price", lang))
+                            Text(
+                                text = "تطبيق التخفيض على القسم",
+                                color = Color(0xFF141414),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.removeCategoryDiscount(selectedWholeCategoryId)
+                                Toast.makeText(context, "تم إلغاء تخفيض القسم", Toast.LENGTH_SHORT).show()
+                                onBack()
+                            },
+                            modifier = Modifier.height(46.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, Color(0xFFE53935))
+                        ) {
+                            Text(
+                                text = "إلغاء تخفيض القسم",
+                                color = Color(0xFFE53935),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
                         }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                if (discountType == 0) {
-                    OutlinedTextField(
-                        value = percentageInput,
-                        onValueChange = { percentageInput = it },
-                        label = { Text("النسبة المئوية (مثال: 20%)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
-                } else {
-                    OutlinedTextField(
-                        value = fixedPriceInput,
-                        onValueChange = { fixedPriceInput = it },
-                        label = { Text("السعر المخفض الجديد (بالدينار)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Toggle: Show in Offers Page
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = Strings.get("show_in_offers_page", lang),
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "إبراز المادة بشكل ملفت في صفحة العروضات الخاصة مع زر إضافة مباشر",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = showInOffersPage,
-                        onCheckedChange = { showInOffersPage = it }
-                    )
-                }
             }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Save Button (Mandatory Save Pattern)
-        Button(
-            onClick = {
-                if (discountTarget == 0) {
-                    val pct = if (discountType == 0) percentageInput.toIntOrNull() else null
-                    val fixed = if (discountType == 1) fixedPriceInput.toDoubleOrNull() else null
-                    viewModel.applyDiscountToItem(selectedItemId, fixed, pct, showInOffersPage)
-                } else {
-                    val pct = percentageInput.toIntOrNull()
-                    viewModel.applyDiscountToCategory(selectedCategoryId, pct, showInOffersPage)
-                }
-                Toast.makeText(context, "تم حفظ وتطبيق التخفيض بنجاح!", Toast.LENGTH_SHORT).show()
-                onBack()
-            },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Icon(Icons.Default.Save, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(Strings.get("save_changes", lang), fontWeight = FontWeight.Bold)
         }
     }
 }

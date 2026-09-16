@@ -124,10 +124,10 @@ class CafeRepository(private val cafeDao: CafeDao) {
         val items = cafeDao.getAllMenuItems(DEFAULT_CAFE_ID).firstOrNull() ?: return
         val target = items.firstOrNull { it.id == itemId } ?: return
         val discounted = if (percentage != null && percentage > 0) {
-            target.originalPrice * (1.0 - (percentage / 100.0))
-        } else {
-            newPrice
-        }
+            roundTo250IQD(target.originalPrice * (1.0 - (percentage / 100.0)))
+        } else if (newPrice != null) {
+            roundTo250IQD(newPrice)
+        } else null
         val updated = target.copy(
             discountedPrice = discounted,
             discountPercentage = percentage,
@@ -145,7 +145,7 @@ class CafeRepository(private val cafeDao: CafeDao) {
         val categoryItems = items.filter { it.categoryId == categoryId }
         for (item in categoryItems) {
             val discounted = if (percentage != null && percentage > 0) {
-                item.originalPrice * (1.0 - (percentage / 100.0))
+                roundTo250IQD(item.originalPrice * (1.0 - (percentage / 100.0)))
             } else null
             val updated = item.copy(
                 discountedPrice = discounted,
