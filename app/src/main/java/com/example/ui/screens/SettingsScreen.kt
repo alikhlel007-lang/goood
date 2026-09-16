@@ -94,6 +94,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -617,36 +618,19 @@ fun MenuManagementScreen(
                                 CafeIconBadge(
                                     iconName = cat.iconName,
                                     customImageUri = cat.customImageUri,
-                                    size = 44.dp,
-                                    iconSize = 24.dp
+                                    size = 40.dp,
+                                    iconSize = 22.dp
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            cat.name,
-                                            fontWeight = FontWeight.Bold,
-                                            style = MaterialTheme.typography.titleMedium
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        // Visibility Tag
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .background(
-                                                    if (cat.isVisible) Color(0xFF4CAF50).copy(alpha = 0.15f)
-                                                    else MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
-                                                )
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                        ) {
-                                            Text(
-                                                text = if (cat.isVisible) "ظاهر للزبائن" else "مخفي",
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (cat.isVisible) Color(0xFF2E7D32) else MaterialTheme.colorScheme.error
-                                            )
-                                        }
-                                    }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = cat.name,
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         "${itemsInCat.size} مواد في هذا القسم",
                                         style = MaterialTheme.typography.bodySmall,
@@ -702,7 +686,7 @@ fun MenuManagementScreen(
                             }
                         }
 
-                        Divider(modifier = Modifier.padding(vertical = 10.dp))
+                        Divider(modifier = Modifier.padding(vertical = 8.dp))
 
                         // Items inside this category
                         if (itemsInCat.isEmpty()) {
@@ -723,9 +707,9 @@ fun MenuManagementScreen(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 6.dp)
+                                        .padding(vertical = 4.dp)
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (item.isAvailable) 0.35f else 0.15f))
                                         .padding(horizontal = 10.dp, vertical = 8.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
@@ -741,32 +725,15 @@ fun MenuManagementScreen(
                                             iconSize = 22.dp
                                         )
                                         Spacer(modifier = Modifier.width(10.dp))
-                                        Column {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(
-                                                    item.name,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    fontSize = 13.sp
-                                                )
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                // Item Visibility Tag
-                                                Box(
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(4.dp))
-                                                        .background(
-                                                            if (item.isAvailable) Color(0xFF4CAF50).copy(alpha = 0.15f)
-                                                            else MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
-                                                        )
-                                                        .padding(horizontal = 5.dp, vertical = 1.dp)
-                                                ) {
-                                                    Text(
-                                                        text = if (item.isAvailable) "ظاهر" else "مخفي",
-                                                        fontSize = 9.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = if (item.isAvailable) Color(0xFF2E7D32) else MaterialTheme.colorScheme.error
-                                                    )
-                                                }
-                                            }
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = item.name,
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 13.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Text(
                                                     "${item.effectivePrice.toInt()} د.ع",
@@ -2073,21 +2040,21 @@ fun OffersManagementScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(14.dp))
                         .background(Color(0xFF1E1E1E))
-                        .border(BorderStroke(1.dp, Color(0xFF2E2E2E)), RoundedCornerShape(16.dp))
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        .border(BorderStroke(1.dp, Color(0xFF2E2E2E)), RoundedCornerShape(14.dp))
+                        .padding(3.dp),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                     // Option 0: تخفيض مادة
                     val isItemMode = selectedMode == 0
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(10.dp))
                             .background(if (isItemMode) Color(0xFFE5A93C) else Color.Transparent)
                             .clickable { selectedMode = 0 }
-                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                            .padding(vertical = 7.dp, horizontal = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2095,14 +2062,14 @@ fun OffersManagementScreen(
                                 imageVector = Icons.Default.LocalOffer,
                                 contentDescription = null,
                                 tint = if (isItemMode) Color(0xFF141414) else Color(0xFFCCCCCC),
-                                modifier = Modifier.size(15.dp)
+                                modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "تخفيض مادة",
                                 color = if (isItemMode) Color(0xFF141414) else Color(0xFFCCCCCC),
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 11.5.sp
+                                fontSize = 11.sp
                             )
                         }
                     }
@@ -2112,10 +2079,10 @@ fun OffersManagementScreen(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(10.dp))
                             .background(if (isCategoryMode) Color(0xFFE5A93C) else Color.Transparent)
                             .clickable { selectedMode = 1 }
-                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                            .padding(vertical = 7.dp, horizontal = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2123,14 +2090,14 @@ fun OffersManagementScreen(
                                 imageVector = Icons.Default.Layers,
                                 contentDescription = null,
                                 tint = if (isCategoryMode) Color(0xFF141414) else Color(0xFFCCCCCC),
-                                modifier = Modifier.size(15.dp)
+                                modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "تخفيض قسم",
                                 color = if (isCategoryMode) Color(0xFF141414) else Color(0xFFCCCCCC),
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 11.5.sp
+                                fontSize = 11.sp
                             )
                         }
                     }
@@ -2139,11 +2106,11 @@ fun OffersManagementScreen(
                     val isDiscountedMode = selectedMode == 2
                     Box(
                         modifier = Modifier
-                            .weight(1.3f)
-                            .clip(RoundedCornerShape(12.dp))
+                            .weight(1.2f)
+                            .clip(RoundedCornerShape(10.dp))
                             .background(if (isDiscountedMode) Color(0xFFE5A93C) else Color.Transparent)
                             .clickable { selectedMode = 2 }
-                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                            .padding(vertical = 7.dp, horizontal = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2151,20 +2118,20 @@ fun OffersManagementScreen(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = null,
                                 tint = if (isDiscountedMode) Color(0xFF141414) else Color(0xFFCCCCCC),
-                                modifier = Modifier.size(15.dp)
+                                modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = if (currentlyDiscountedItems.isNotEmpty()) "المخفضة (${currentlyDiscountedItems.size})" else "المواد المخفضة",
                                 color = if (isDiscountedMode) Color(0xFF141414) else Color(0xFFCCCCCC),
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp
+                                fontSize = 10.5.sp
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 if (selectedMode == 0) {
                     // MODE 0: تحديد مواد من أقسام مختلفة (المطابق للصورة تماماً)
@@ -2178,11 +2145,11 @@ fun OffersManagementScreen(
                             text = "تصفية:",
                             color = Color(0xFFAAAAAA),
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            fontSize = 12.sp
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             // Chip "الكل (count)"
@@ -2190,17 +2157,17 @@ fun OffersManagementScreen(
                                 val isAllSelected = filterCategoryId == null
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(16.dp))
+                                        .clip(RoundedCornerShape(14.dp))
                                         .background(if (isAllSelected) Color(0xFFE5A93C) else Color(0xFF222222))
-                                        .border(BorderStroke(1.dp, if (isAllSelected) Color(0xFFE5A93C) else Color(0xFF383838)), RoundedCornerShape(16.dp))
+                                        .border(BorderStroke(1.dp, if (isAllSelected) Color(0xFFE5A93C) else Color(0xFF383838)), RoundedCornerShape(14.dp))
                                         .clickable { filterCategoryId = null }
-                                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                                        .padding(horizontal = 10.dp, vertical = 5.dp)
                                 ) {
                                     Text(
                                         text = "الكل (${menuItems.size})",
                                         color = if (isAllSelected) Color(0xFF141414) else Color.White,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp
+                                        fontSize = 11.5.sp
                                     )
                                 }
                             }
@@ -2217,150 +2184,120 @@ fun OffersManagementScreen(
                                 }
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(16.dp))
+                                        .clip(RoundedCornerShape(14.dp))
                                         .background(if (isSelected) Color(0xFFE5A93C) else Color(0xFF222222))
-                                        .border(BorderStroke(1.dp, if (isSelected) Color(0xFFE5A93C) else Color(0xFF383838)), RoundedCornerShape(16.dp))
+                                        .border(BorderStroke(1.dp, if (isSelected) Color(0xFFE5A93C) else Color(0xFF383838)), RoundedCornerShape(14.dp))
                                         .clickable { filterCategoryId = cat.id }
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                        .padding(horizontal = 10.dp, vertical = 5.dp)
                                 ) {
                                     Text(
                                         text = "$iconPrefix${cat.name}",
                                         color = if (isSelected) Color(0xFF141414) else Color.White,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp
+                                        fontSize = 11.5.sp
                                     )
                                 }
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                    // 4. Quick Actions Row (تحديد الكل المعروض / إلغاء التحديد)
+                    // 4. Quick Actions + Discount Method Switcher (شريط مدمج يوفر مساحة كبيرة لتقليب المواد)
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFF1A1A1A))
+                            .border(BorderStroke(1.dp, Color(0xFF282828)), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "تحديد الكل المعروض",
-                            color = Color(0xFFE5A93C),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            modifier = Modifier.clickable {
-                                visibleItems.forEach { item ->
-                                    if (!selectedItemIds.contains(item.id)) {
-                                        selectedItemIds.add(item.id)
-                                    }
-                                    if (!manualPrices.containsKey(item.id)) {
-                                        manualPrices[item.id] = (item.discountedPrice ?: (item.originalPrice * 0.8)).toInt().toString()
-                                    }
-                                }
-                            }
-                        )
-
-                        Text(
-                            text = "إلغاء التحديد (${selectedItemIds.size})",
-                            color = Color(0xFFE53935),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            modifier = Modifier.clickable {
-                                selectedItemIds.clear()
-                            }
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // 5. Discount Method Box ("طريقة تطبيق التخفيض:")
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
-                        border = BorderStroke(1.dp, Color(0xFF333333))
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
+                        // Quick selection actions
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "طريقة تطبيق التخفيض:",
-                                color = Color.White,
+                                text = "تحديد الكل (${visibleItems.size})",
+                                color = Color(0xFFE5A93C),
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
+                                fontSize = 11.5.sp,
+                                modifier = Modifier.clickable {
+                                    visibleItems.forEach { item ->
+                                        if (!selectedItemIds.contains(item.id)) {
+                                            selectedItemIds.add(item.id)
+                                        }
+                                        if (!manualPrices.containsKey(item.id)) {
+                                            manualPrices[item.id] = (item.discountedPrice ?: (item.originalPrice * 0.8)).toInt().toString()
+                                        }
+                                    }
+                                }
                             )
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFF141414))
-                                    .border(BorderStroke(1.dp, Color(0xFF282828)), RoundedCornerShape(12.dp))
-                                    .padding(4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                // Right: نسبة مئوية (%)
-                                val isPercent = discountMethod == 0
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(if (isPercent) Color(0xFFE5A93C) else Color.Transparent)
-                                        .clickable { discountMethod = 0 }
-                                        .padding(vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Default.Percent,
-                                            contentDescription = null,
-                                            tint = if (isPercent) Color(0xFF141414) else Color(0xFFAAAAAA),
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            text = "% نسبة مئوية (%)",
-                                            color = if (isPercent) Color(0xFF141414) else Color(0xFFAAAAAA),
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp
-                                        )
-                                    }
-                                }
 
-                                // Left: تعديل السعر يدوياً (د.ع) - نشط في الصورة
-                                val isManual = discountMethod == 1
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(if (isManual) Color(0xFFE5A93C) else Color.Transparent)
-                                        .clickable { discountMethod = 1 }
-                                        .padding(vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Default.Payments,
-                                            contentDescription = null,
-                                            tint = if (isManual) Color(0xFF141414) else Color(0xFFAAAAAA),
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            text = "تعديل السعر يدوياً (د.ع)",
-                                            color = if (isManual) Color(0xFF141414) else Color(0xFFAAAAAA),
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 11.5.sp
-                                        )
+                            if (selectedItemIds.isNotEmpty()) {
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "إلغاء التحديد (${selectedItemIds.size})",
+                                    color = Color(0xFFE53935),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.5.sp,
+                                    modifier = Modifier.clickable {
+                                        selectedItemIds.clear()
                                     }
-                                }
+                                )
+                            }
+                        }
+
+                        // Compact discount method toggle (% vs manual price)
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(7.dp))
+                                .background(Color(0xFF121212))
+                                .border(BorderStroke(1.dp, Color(0xFF333333)), RoundedCornerShape(7.dp))
+                                .padding(2.dp),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            val isPercent = discountMethod == 0
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(5.dp))
+                                    .background(if (isPercent) Color(0xFFE5A93C) else Color.Transparent)
+                                    .clickable { discountMethod = 0 }
+                                    .padding(horizontal = 7.dp, vertical = 3.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "% نسبة",
+                                    color = if (isPercent) Color(0xFF141414) else Color(0xFFAAAAAA),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.5.sp
+                                )
+                            }
+
+                            val isManual = discountMethod == 1
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(5.dp))
+                                    .background(if (isManual) Color(0xFFE5A93C) else Color.Transparent)
+                                    .clickable { discountMethod = 1 }
+                                    .padding(horizontal = 7.dp, vertical = 3.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "د.ع يدوي",
+                                    color = if (isManual) Color(0xFF141414) else Color(0xFFAAAAAA),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.5.sp
+                                )
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                    // 6. Items List (قائمة المواد القابلة للتحديد كما في الصورة تماماً)
+                    // 5. Items List (مساحة واسعة جداً لتقليب واختيار المواد وتخفيضها)
                     LazyColumn(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(bottom = 16.dp)
                     ) {
                         items(visibleItems) { item ->
@@ -2380,14 +2317,14 @@ fun OffersManagementScreen(
                                             }
                                         }
                                     },
-                                shape = RoundedCornerShape(14.dp),
+                                shape = RoundedCornerShape(12.dp),
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1C)),
                                 border = BorderStroke(
                                     if (isSelected) 1.5.dp else 1.dp,
                                     if (isSelected) Color(0xFFE5A93C) else Color(0xFF2E2E2E)
                                 )
                             ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
+                                Column(modifier = Modifier.padding(10.dp)) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         verticalAlignment = Alignment.CenterVertically
@@ -2395,7 +2332,7 @@ fun OffersManagementScreen(
                                         // Checkbox on the right
                                         Box(
                                             modifier = Modifier
-                                                .size(24.dp)
+                                                .size(22.dp)
                                                 .clip(RoundedCornerShape(6.dp))
                                                 .background(if (isSelected) Color(0xFFE5A93C) else Color(0xFF141414))
                                                 .border(
@@ -2409,29 +2346,29 @@ fun OffersManagementScreen(
                                                     imageVector = Icons.Default.Check,
                                                     contentDescription = null,
                                                     tint = Color(0xFF141414),
-                                                    modifier = Modifier.size(16.dp)
+                                                    modifier = Modifier.size(15.dp)
                                                 )
                                             }
                                         }
 
-                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Spacer(modifier = Modifier.width(10.dp))
 
                                         // Item Thumbnail
                                         Box(
                                             modifier = Modifier
-                                                .size(54.dp)
-                                                .clip(RoundedCornerShape(12.dp))
+                                                .size(46.dp)
+                                                .clip(RoundedCornerShape(10.dp))
                                                 .background(Color(0xFF282828))
                                         ) {
                                             CafeIconBadge(
                                                 iconName = item.iconName,
                                                 customImageUri = item.customImageUri,
-                                                size = 54.dp,
+                                                size = 46.dp,
                                                 containerColor = Color(0xFF282828)
                                             )
                                         }
 
-                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Spacer(modifier = Modifier.width(10.dp))
 
                                         // Item Name and Price
                                         Column(modifier = Modifier.weight(1f)) {
@@ -2439,23 +2376,25 @@ fun OffersManagementScreen(
                                                 text = item.name,
                                                 color = Color.White,
                                                 fontWeight = FontWeight.Bold,
-                                                fontSize = 14.sp
+                                                fontSize = 13.5.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
-                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Spacer(modifier = Modifier.height(3.dp))
                                             if (isItemDiscounted) {
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                                     Text(
                                                         text = "${item.discountedPrice?.toInt()} د.ع",
                                                         color = Color(0xFFE5A93C),
                                                         fontWeight = FontWeight.Bold,
-                                                        fontSize = 13.sp
+                                                        fontSize = 12.5.sp
                                                     )
-                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Spacer(modifier = Modifier.width(6.dp))
                                                     Text(
                                                         text = "${item.originalPrice.toInt()} د.ع",
                                                         textDecoration = TextDecoration.LineThrough,
                                                         color = Color(0xFF888888),
-                                                        fontSize = 11.5.sp
+                                                        fontSize = 11.sp
                                                     )
                                                 }
                                             } else {
@@ -2463,7 +2402,7 @@ fun OffersManagementScreen(
                                                     text = "${item.originalPrice.toInt()} د.ع",
                                                     color = Color(0xFFE5A93C),
                                                     fontWeight = FontWeight.Bold,
-                                                    fontSize = 13.sp
+                                                    fontSize = 12.5.sp
                                                 )
                                             }
                                         }
@@ -2808,45 +2747,45 @@ fun OffersManagementScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    shape = RoundedCornerShape(16.dp),
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1C)),
                     border = BorderStroke(1.dp, Color(0xFFE5A93C).copy(alpha = 0.8f))
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
+                    Column(modifier = Modifier.padding(10.dp)) {
                         Text(
                             text = if (selectedItemIds.size == 1) {
-                                "تعديل سعر المادة المختارة: (${firstSelectedItem?.name ?: ""})"
+                                "تعديل سعر المادة: (${firstSelectedItem?.name ?: ""})"
                             } else {
                                 "تعديل أسعار المواد المختارة (${selectedItemIds.size} مواد)"
                             },
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            fontSize = 12.5.sp
                         )
 
                         if (selectedItemIds.size == 1 && firstSelectedItem != null) {
-                            Spacer(modifier = Modifier.height(3.dp))
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "السعر الأصلي الحالي: ${firstSelectedItem.originalPrice.toInt()} د.ع",
+                                text = "السعر الأصلي: ${firstSelectedItem.originalPrice.toInt()} د.ع",
                                 color = Color(0xFFAAAAAA),
-                                fontSize = 11.5.sp
+                                fontSize = 11.sp
                             )
                         }
 
                         if (discountMethod == 0) {
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
                             OutlinedTextField(
                                 value = percentageInput,
                                 onValueChange = { percentageInput = it },
-                                label = { Text("النسبة المئوية (%)") },
+                                label = { Text("النسبة المئوية (%)", fontSize = 11.sp) },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -2872,7 +2811,7 @@ fun OffersManagementScreen(
                                     Toast.makeText(context, "تم حفظ وتطبيق التخفيض بنجاح!", Toast.LENGTH_SHORT).show()
                                     onBack()
                                 },
-                                modifier = Modifier.weight(1f).height(46.dp),
+                                modifier = Modifier.weight(1f).height(42.dp),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE5A93C))
                             ) {
@@ -2880,7 +2819,7 @@ fun OffersManagementScreen(
                                     text = "تطبيق وحفظ التخفيض",
                                     color = Color(0xFF141414),
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp
+                                    fontSize = 12.5.sp
                                 )
                             }
 
@@ -2897,7 +2836,7 @@ fun OffersManagementScreen(
                                         Toast.makeText(context, "تم إلغاء التخفيض عن المواد المحددة", Toast.LENGTH_SHORT).show()
                                         onBack()
                                     },
-                                    modifier = Modifier.height(46.dp),
+                                    modifier = Modifier.height(42.dp),
                                     shape = RoundedCornerShape(10.dp),
                                     border = BorderStroke(1.dp, Color(0xFFE53935))
                                 ) {
@@ -2905,7 +2844,7 @@ fun OffersManagementScreen(
                                         text = "إلغاء التخفيض",
                                         color = Color(0xFFE53935),
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp
+                                        fontSize = 11.5.sp
                                     )
                                 }
                             }
