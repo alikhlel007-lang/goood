@@ -1,6 +1,8 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,14 +40,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.components.CafeIconBadge
+import com.example.R
 import com.example.ui.locale.AppLanguage
 import com.example.ui.locale.Strings
 import com.example.ui.viewmodel.CafeViewModel
@@ -75,13 +81,19 @@ fun AuthScreen(
     ) {
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Cafe SaaS Branding
-        CafeIconBadge(
-            iconName = "coffee",
-            size = 80.dp,
-            iconSize = 44.dp,
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            iconColor = MaterialTheme.colorScheme.primary
+        // App Branding - App Icon
+        Image(
+            painter = painterResource(id = R.drawable.cafe_qr_app_icon),
+            contentDescription = Strings.get("app_name", lang),
+            modifier = Modifier
+                .size(86.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .border(
+                    width = 1.dp,
+                    color = Color(0xFFE5A93C).copy(alpha = 0.4f),
+                    shape = RoundedCornerShape(20.dp)
+                ),
+            contentScale = ContentScale.Fit
         )
 
         Spacer(modifier = Modifier.height(24.dp))
