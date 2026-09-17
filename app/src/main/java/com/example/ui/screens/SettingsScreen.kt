@@ -87,6 +87,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextStyle
@@ -98,6 +99,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.data.local.entity.CategoryEntity
 import com.example.data.local.entity.MenuItemEntity
 import com.example.data.local.entity.TableEntity
@@ -1094,6 +1096,7 @@ fun MenuManagementScreen(
         var selectedItemIcon by remember { mutableStateOf("coffee") }
         var customItemImageUri by remember { mutableStateOf<String?>(null) }
         var newItemShowInOffers by remember { mutableStateOf(false) }
+        var newOfferBackgroundUri by remember { mutableStateOf<String?>(null) }
 
         val itemPhotoLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.PickVisualMedia()
@@ -1103,6 +1106,18 @@ fun MenuManagementScreen(
                 if (saved != null) {
                     customItemImageUri = saved
                     Toast.makeText(context, "تم حفظ صورة المادة", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        val offerBgLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.PickVisualMedia()
+        ) { uri ->
+            if (uri != null) {
+                val saved = ImageStorageHelper.saveImageToInternalStorage(context, uri)
+                if (saved != null) {
+                    newOfferBackgroundUri = saved
+                    Toast.makeText(context, "تم حفظ خلفية العرض بنجاح", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -1236,6 +1251,108 @@ fun MenuManagementScreen(
                         }
                     }
 
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Offer Background Image Card
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                        border = BorderStroke(1.dp, Color(0xFFE5A93C).copy(alpha = 0.25f))
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Palette,
+                                    contentDescription = null,
+                                    tint = Color(0xFFE5A93C),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "خلفية بطاقة العرض (اختياري)",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color(0xFFEEEEEE)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "ارفع صورة لتصبح خلفية مميزة لبطاقة المادة في قسم العروض والجديد",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                fontSize = 10.sp
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            if (newOfferBackgroundUri != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(70.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                ) {
+                                    AsyncImage(
+                                        model = newOfferBackgroundUri,
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = 0.35f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "معاينة خلفية العرض ✓",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Button(
+                                    onClick = {
+                                        offerBgLauncher.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                        )
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE5A93C)),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, tint = Color(0xFF141414), modifier = Modifier.size(15.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = if (newOfferBackgroundUri != null) "تغيير خلفية العرض" else "رفع صورة خلفية العرض",
+                                        color = Color(0xFF141414),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                                if (newOfferBackgroundUri != null) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    OutlinedButton(
+                                        onClick = { newOfferBackgroundUri = null },
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text("إزالة الخلفية", fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     if (customItemImageUri == null) {
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
@@ -1281,7 +1398,8 @@ fun MenuManagementScreen(
                                 price = priceNum,
                                 iconName = selectedItemIcon,
                                 customUri = customItemImageUri,
-                                showInOffers = newItemShowInOffers
+                                showInOffers = newItemShowInOffers,
+                                offerBackgroundUri = newOfferBackgroundUri
                             )
                             Toast.makeText(context, "تم حفظ المادة بنجاح", Toast.LENGTH_SHORT).show()
                             showAddItemDialog = false
@@ -1518,6 +1636,7 @@ fun EditMenuItemDialog(
     var selectedCategoryId by remember { mutableStateOf(item.categoryId) }
     var isAvailable by remember { mutableStateOf(item.isAvailable) }
     var showInOffers by remember { mutableStateOf(item.showInOffers) }
+    var offerBackgroundImageUri by remember { mutableStateOf(item.offerBackgroundImageUri) }
     var customImageUri by remember { mutableStateOf(item.customImageUri) }
     var selectedIcon by remember { mutableStateOf(item.iconName) }
 
@@ -1529,6 +1648,18 @@ fun EditMenuItemDialog(
             if (savedPath != null) {
                 customImageUri = savedPath
                 Toast.makeText(context, "تم حفظ صورة المادة بنجاح", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    val offerBgLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            val savedPath = ImageStorageHelper.saveImageToInternalStorage(context, uri)
+            if (savedPath != null) {
+                offerBackgroundImageUri = savedPath
+                Toast.makeText(context, "تم حفظ خلفية العرض بنجاح", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -1762,6 +1893,108 @@ fun EditMenuItemDialog(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Offer Background Image Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                    border = BorderStroke(1.dp, Color(0xFFE5A93C).copy(alpha = 0.25f))
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Palette,
+                                contentDescription = null,
+                                tint = Color(0xFFE5A93C),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "خلفية بطاقة العرض",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color(0xFFEEEEEE)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "صورة مخصصة كخلفية لبطاقة المادة داخل قسم العروض والإضافات الجديدة",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                            fontSize = 10.5.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        if (offerBackgroundImageUri != null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(70.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                            ) {
+                                AsyncImage(
+                                    model = offerBackgroundImageUri,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Black.copy(alpha = 0.35f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "معاينة خلفية العرض الحالية ✓",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Button(
+                                onClick = {
+                                    offerBgLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE5A93C)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, tint = Color(0xFF141414), modifier = Modifier.size(15.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (offerBackgroundImageUri != null) "تغيير خلفية العرض" else "رفع صورة خلفية للعرض",
+                                    color = Color(0xFF141414),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
+                            if (offerBackgroundImageUri != null) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                OutlinedButton(
+                                    onClick = { offerBackgroundImageUri = null },
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("إزالة الخلفية", fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // If no custom image, show icons picker
                 if (customImageUri == null) {
                     Spacer(modifier = Modifier.height(12.dp))
@@ -1808,6 +2041,7 @@ fun EditMenuItemDialog(
                                 categoryId = selectedCategoryId,
                                 isAvailable = isAvailable,
                                 showInOffers = showInOffers,
+                                offerBackgroundImageUri = offerBackgroundImageUri,
                                 customImageUri = customImageUri,
                                 iconName = selectedIcon
                             )
@@ -2062,6 +2296,23 @@ fun OffersManagementScreen(
 
     // Category filter: null for "الكل" or categoryId
     var filterCategoryId by remember { mutableStateOf<String?>(null) }
+
+    // Target item when uploading offer background image
+    var itemForOfferBgUpload by remember { mutableStateOf<MenuItemEntity?>(null) }
+
+    val offerBgPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            itemForOfferBgUpload?.let { targetItem ->
+                val saved = ImageStorageHelper.saveImageToInternalStorage(context, uri)
+                if (saved != null) {
+                    viewModel.updateMenuItem(targetItem.copy(offerBackgroundImageUri = saved))
+                    Toast.makeText(context, "تم حفظ خلفية العرض لـ ${targetItem.name}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     // Multi-selection of item IDs (default selects the first item or user clicks)
     val selectedItemIds = remember { mutableStateListOf<String>() }
@@ -2579,6 +2830,42 @@ fun OffersManagementScreen(
                                                 )
                                             }
                                         }
+
+                                        Spacer(modifier = Modifier.width(6.dp))
+
+                                        // Quick Offer Background Button directly on each item
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(if (item.offerBackgroundImageUri != null) Color(0xFFE5A93C).copy(alpha = 0.22f) else Color(0xFF282828))
+                                                .border(
+                                                    BorderStroke(1.dp, if (item.offerBackgroundImageUri != null) Color(0xFFE5A93C).copy(alpha = 0.6f) else Color(0xFF3E3E3E)),
+                                                    RoundedCornerShape(8.dp)
+                                                )
+                                                .clickable {
+                                                    itemForOfferBgUpload = item
+                                                    offerBgPickerLauncher.launch(
+                                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                                    )
+                                                }
+                                                .padding(horizontal = 7.dp, vertical = 5.dp)
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.AddPhotoAlternate,
+                                                    contentDescription = null,
+                                                    tint = if (item.offerBackgroundImageUri != null) Color(0xFFE5A93C) else Color(0xFFCCCCCC),
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(3.dp))
+                                                Text(
+                                                    text = if (item.offerBackgroundImageUri != null) "الخلفية 🖼️" else "خلفية",
+                                                    color = if (item.offerBackgroundImageUri != null) Color(0xFFE5A93C) else Color(0xFFCCCCCC),
+                                                    fontSize = 10.5.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
                                     }
 
                                     // If this item is selected AND discountMethod is manual price:
@@ -2944,6 +3231,98 @@ fun OffersManagementScreen(
                                 color = Color(0xFFAAAAAA),
                                 fontSize = 11.sp
                             )
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            // Offer background configuration for this selected item
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF262626)),
+                                border = BorderStroke(0.5.dp, Color(0xFFE5A93C).copy(alpha = 0.35f))
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Palette,
+                                            contentDescription = null,
+                                            tint = Color(0xFFE5A93C),
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "خلفية بطاقة العرض:",
+                                            color = Color.White,
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        if (firstSelectedItem.offerBackgroundImageUri != null) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(26.dp)
+                                                    .clip(RoundedCornerShape(4.dp))
+                                            ) {
+                                                AsyncImage(
+                                                    model = firstSelectedItem.offerBackgroundImageUri,
+                                                    contentDescription = null,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            OutlinedButton(
+                                                onClick = {
+                                                    viewModel.updateMenuItem(firstSelectedItem.copy(offerBackgroundImageUri = null))
+                                                    Toast.makeText(context, "تم إزالة خلفية العرض لـ ${firstSelectedItem.name}", Toast.LENGTH_SHORT).show()
+                                                },
+                                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                                                modifier = Modifier.height(26.dp),
+                                                shape = RoundedCornerShape(6.dp)
+                                            ) {
+                                                Text("إزالة", fontSize = 10.sp, color = Color(0xFFFF6B6B))
+                                            }
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                        }
+
+                                        Button(
+                                            onClick = {
+                                                itemForOfferBgUpload = firstSelectedItem
+                                                offerBgPickerLauncher.launch(
+                                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                                )
+                                            },
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                            modifier = Modifier.height(26.dp),
+                                            shape = RoundedCornerShape(6.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = if (firstSelectedItem.offerBackgroundImageUri != null) Color(0xFF383838) else Color(0xFFE5A93C)
+                                            )
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.AddPhotoAlternate,
+                                                contentDescription = null,
+                                                tint = if (firstSelectedItem.offerBackgroundImageUri != null) Color(0xFFE5A93C) else Color(0xFF141414),
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = if (firstSelectedItem.offerBackgroundImageUri != null) "تغيير الخلفية" else "رفع خلفية",
+                                                color = if (firstSelectedItem.offerBackgroundImageUri != null) Color.White else Color(0xFF141414),
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
 
                         if (discountMethod == 0) {

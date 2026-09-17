@@ -93,7 +93,8 @@ class CafeRepository(private val cafeDao: CafeDao) {
         price: Double,
         iconName: String,
         customUri: String? = null,
-        showInOffers: Boolean = false
+        showInOffers: Boolean = false,
+        offerBackgroundUri: String? = null
     ) {
         val item = MenuItemEntity(
             id = UUID.randomUUID().toString(),
@@ -104,7 +105,8 @@ class CafeRepository(private val cafeDao: CafeDao) {
             originalPrice = price,
             iconName = iconName,
             customImageUri = customUri,
-            showInOffers = showInOffers
+            showInOffers = showInOffers,
+            offerBackgroundImageUri = offerBackgroundUri
         )
         cafeDao.insertMenuItem(item)
     }

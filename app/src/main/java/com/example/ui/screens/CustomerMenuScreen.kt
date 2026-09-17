@@ -75,6 +75,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
@@ -85,6 +86,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.data.local.entity.MenuItemEntity
 import com.example.data.local.entity.TableEntity
 import com.example.ui.components.CafeIconBadge
@@ -700,15 +702,40 @@ fun MenuItemRegularCard(
         border = BorderStroke(1.dp, Color(0xFFE5A93C).copy(alpha = 0.22f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        // Enforce LTR inside the card so Image is strictly on the LEFT, and Arabic text on the RIGHT
-        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // LEFT SIDE: Image + order+ button
+        Box(modifier = Modifier.fillMaxWidth()) {
+            // Optional offer background image
+            if (!item.offerBackgroundImageUri.isNullOrBlank()) {
+                AsyncImage(
+                    model = item.offerBackgroundImageUri,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.matchParentSize()
+                )
+                // Dark gradient overlay to ensure text and buttons remain crystal clear
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color(0xF2121212),
+                                    Color(0xD9121212),
+                                    Color(0xF5121212)
+                                )
+                            )
+                        )
+                )
+            }
+
+            // Enforce LTR inside the card so Image is strictly on the LEFT, and Arabic text on the RIGHT
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // LEFT SIDE: Image + order+ button
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.width(82.dp)
@@ -867,6 +894,7 @@ fun MenuItemRegularCard(
         }
     }
 }
+}
 
 @Composable
 fun SpecialOfferCard(
@@ -889,6 +917,20 @@ fun SpecialOfferCard(
                     .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
+                if (!item.offerBackgroundImageUri.isNullOrBlank()) {
+                    AsyncImage(
+                        model = item.offerBackgroundImageUri,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.matchParentSize()
+                    )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(Color.Black.copy(alpha = 0.42f))
+                    )
+                }
+
                 CafeIconBadge(
                     iconName = item.iconName,
                     customImageUri = item.customImageUri,

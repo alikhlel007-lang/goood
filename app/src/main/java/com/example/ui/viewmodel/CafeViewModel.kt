@@ -287,10 +287,17 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
         price: Double,
         iconName: String,
         customUri: String? = null,
-        showInOffers: Boolean = false
+        showInOffers: Boolean = false,
+        offerBackgroundUri: String? = null
     ) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.addMenuItem(CafeRepository.DEFAULT_CAFE_ID, categoryId, name, description, price, iconName, customUri, showInOffers)
+            repository.addMenuItem(CafeRepository.DEFAULT_CAFE_ID, categoryId, name, description, price, iconName, customUri, showInOffers, offerBackgroundUri)
+        }
+    }
+
+    fun updateMenuItemOfferBackground(item: MenuItemEntity, bgUri: String?) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.updateMenuItem(item.copy(offerBackgroundImageUri = bgUri))
         }
     }
 
