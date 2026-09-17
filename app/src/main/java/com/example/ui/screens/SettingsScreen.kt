@@ -766,13 +766,46 @@ fun MenuManagementScreen(
                                                             )
                                                         }
                                                     }
+                                                    if (!item.showInOffers) {
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .clip(RoundedCornerShape(4.dp))
+                                                                .background(Color(0xFF383838))
+                                                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = "مخفية من العروض",
+                                                                color = Color(0xFFAAAAAA),
+                                                                fontSize = 8.sp,
+                                                                fontWeight = FontWeight.Medium
+                                                            )
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
                                     }
 
-                                    // Action buttons for Item: Quick Toggle, Edit, Delete
+                                    // Action buttons for Item: Quick Toggle Visibility, Offers Toggle, Edit, Delete
                                     Row(verticalAlignment = Alignment.CenterVertically) {
+                                        // Quick Toggle Offers Visibility (إظهار/إخفاء من العروض)
+                                        IconButton(
+                                            onClick = {
+                                                viewModel.toggleMenuItemOffersVisibility(item)
+                                                val msg = if (item.showInOffers) "تم إخفاء ${item.name} من قسم العروض" else "تم إظهار ${item.name} في قسم العروض"
+                                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                            },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.LocalOffer,
+                                                contentDescription = if (item.showInOffers) "إخفاء من العروض" else "إظهار في العروض",
+                                                tint = if (item.showInOffers) Color(0xFFE5A93C) else Color(0xFF555555),
+                                                modifier = Modifier.size(17.dp)
+                                            )
+                                        }
+
                                         // Quick Toggle Visibility
                                         IconButton(
                                             onClick = {
@@ -1060,6 +1093,7 @@ fun MenuManagementScreen(
         var newItemPrice by remember { mutableStateOf("") }
         var selectedItemIcon by remember { mutableStateOf("coffee") }
         var customItemImageUri by remember { mutableStateOf<String?>(null) }
+        var newItemShowInOffers by remember { mutableStateOf(false) }
 
         val itemPhotoLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.PickVisualMedia()
@@ -1152,6 +1186,56 @@ fun MenuManagementScreen(
                         maxLines = 2
                     )
 
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Offers Visibility Switch Card
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (newItemShowInOffers) Color(0xFFE5A93C).copy(alpha = 0.15f)
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ),
+                        border = BorderStroke(1.dp, if (newItemShowInOffers) Color(0xFFE5A93C).copy(alpha = 0.4f) else Color.Transparent)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocalOffer,
+                                        contentDescription = null,
+                                        tint = if (newItemShowInOffers) Color(0xFFE5A93C) else Color(0xFF888888),
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (newItemShowInOffers) "إظهار في قسم العروض والجديد ✨" else "إخفاء من قسم العروض والجديد",
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = if (newItemShowInOffers) Color(0xFFE5A93C) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = if (newItemShowInOffers) "ستظهر المادة في بنر العروض وأحدث الإضافات" else "ستظهر في المينو العادي فقط دون قسم العروض",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                    fontSize = 10.5.sp
+                                )
+                            }
+                            Switch(
+                                checked = newItemShowInOffers,
+                                onCheckedChange = { newItemShowInOffers = it }
+                            )
+                        }
+                    }
+
                     if (customItemImageUri == null) {
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
@@ -1196,7 +1280,8 @@ fun MenuManagementScreen(
                                 description = newItemDesc.trim(),
                                 price = priceNum,
                                 iconName = selectedItemIcon,
-                                customUri = customItemImageUri
+                                customUri = customItemImageUri,
+                                showInOffers = newItemShowInOffers
                             )
                             Toast.makeText(context, "تم حفظ المادة بنجاح", Toast.LENGTH_SHORT).show()
                             showAddItemDialog = false
@@ -1432,6 +1517,7 @@ fun EditMenuItemDialog(
     var itemDesc by remember { mutableStateOf(item.description) }
     var selectedCategoryId by remember { mutableStateOf(item.categoryId) }
     var isAvailable by remember { mutableStateOf(item.isAvailable) }
+    var showInOffers by remember { mutableStateOf(item.showInOffers) }
     var customImageUri by remember { mutableStateOf(item.customImageUri) }
     var selectedIcon by remember { mutableStateOf(item.iconName) }
 
@@ -1625,6 +1711,57 @@ fun EditMenuItemDialog(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Offers Visibility Switch Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (showInOffers) Color(0xFFE5A93C).copy(alpha = 0.15f)
+                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ),
+                    border = BorderStroke(1.dp, if (showInOffers) Color(0xFFE5A93C).copy(alpha = 0.4f) else Color.Transparent)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.LocalOffer,
+                                    contentDescription = null,
+                                    tint = if (showInOffers) Color(0xFFE5A93C) else Color(0xFF888888),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (showInOffers) "المادة ظاهرة في قسم العروض والجديد" else "المادة مخفية من قسم العروض والجديد",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (showInOffers) Color(0xFFE5A93C) else Color(0xFFCCCCCC)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (showInOffers) "تظهر في مهرجان العروض وأحدث الإضافات"
+                                else "مخفية من قسم العروض مع بقائها متاحة في المينو العادي",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 11.sp
+                            )
+                        }
+                        Switch(
+                            checked = showInOffers,
+                            onCheckedChange = { showInOffers = it }
+                        )
+                    }
+                }
+
                 // If no custom image, show icons picker
                 if (customImageUri == null) {
                     Spacer(modifier = Modifier.height(12.dp))
@@ -1670,6 +1807,7 @@ fun EditMenuItemDialog(
                                 description = itemDesc.trim(),
                                 categoryId = selectedCategoryId,
                                 isAvailable = isAvailable,
+                                showInOffers = showInOffers,
                                 customImageUri = customImageUri,
                                 iconName = selectedIcon
                             )
@@ -2403,6 +2541,41 @@ fun OffersManagementScreen(
                                                     color = Color(0xFFE5A93C),
                                                     fontWeight = FontWeight.Bold,
                                                     fontSize = 12.5.sp
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.width(8.dp))
+
+                                        // Quick Toggle Offers Visibility directly from Offers Management!
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(if (item.showInOffers) Color(0xFFE5A93C).copy(alpha = 0.18f) else Color(0xFF282828))
+                                                .border(
+                                                    BorderStroke(1.dp, if (item.showInOffers) Color(0xFFE5A93C).copy(alpha = 0.5f) else Color(0xFF3E3E3E)),
+                                                    RoundedCornerShape(8.dp)
+                                                )
+                                                .clickable {
+                                                    viewModel.toggleMenuItemOffersVisibility(item)
+                                                    val msg = if (item.showInOffers) "تم إخفاء ${item.name} من قسم العروض" else "تم إظهار ${item.name} في قسم العروض"
+                                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                                }
+                                                .padding(horizontal = 8.dp, vertical = 5.dp)
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.LocalOffer,
+                                                    contentDescription = null,
+                                                    tint = if (item.showInOffers) Color(0xFFE5A93C) else Color(0xFF888888),
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = if (item.showInOffers) "في العروض" else "مخفية",
+                                                    color = if (item.showInOffers) Color(0xFFE5A93C) else Color(0xFF888888),
+                                                    fontSize = 10.5.sp,
+                                                    fontWeight = FontWeight.Bold
                                                 )
                                             }
                                         }

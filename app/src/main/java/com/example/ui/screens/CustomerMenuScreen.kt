@@ -121,7 +121,7 @@ fun CustomerMenuScreen(
         menuItems.filter { it.isAvailable && visibleCategories.any { cat -> cat.id == it.categoryId } }
     }
     val visibleSpecialOffers = remember(specialOffers, visibleCategories) {
-        specialOffers.filter { it.isAvailable && visibleCategories.any { cat -> cat.id == it.categoryId } }
+        specialOffers.filter { it.isAvailable && it.showInOffers && visibleCategories.any { cat -> cat.id == it.categoryId } }
     }
 
     var selectedTabIndex by remember { mutableIntStateOf(0) } // 0: Regular Menu, 1: Special Offers
@@ -333,7 +333,7 @@ fun CustomerMenuScreen(
                                 horizontalAlignment = Alignment.End
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    val discountCount = visibleMenuItems.count { it.hasDiscount }
+                                    val discountCount = visibleMenuItems.count { it.hasDiscount && it.showInOffers }
                                     if (discountCount > 0) {
                                         Box(
                                             modifier = Modifier
@@ -1235,11 +1235,11 @@ fun FullOffersAndNewItemsScreen(
     var selectedFilterIndex by remember { mutableIntStateOf(0) } // 0: All, 1: Discounts, 2: New Items
 
     val discountedItems = remember(visibleMenuItems) {
-        visibleMenuItems.filter { it.hasDiscount }
+        visibleMenuItems.filter { it.hasDiscount && it.showInOffers }
     }
     val newItems = remember(visibleMenuItems) {
-        // Take newest items by ID descending, up to 10 items
-        visibleMenuItems.sortedByDescending { it.id }.take(10)
+        // Take newest items that have showInOffers enabled, by ID descending, up to 10 items
+        visibleMenuItems.filter { it.showInOffers }.sortedByDescending { it.id }.take(10)
     }
 
     Box(
@@ -1571,17 +1571,50 @@ fun FullOffersAndNewItemsScreen(
                         }
                     }
 
-                    items(newItems) { item ->
-                        val cartItem = cart[item.id.toString()]
-                        MenuItemRegularCard(
-                            item = item,
-                            cartQty = cartItem?.quantity ?: 0,
-                            lang = lang,
-                            badgeText = if (!item.hasDiscount) "جديد ✨" else null,
-                            badgeColor = Color(0xFF2E7D32),
-                            onAdd = { viewModel.addToCart(item) },
-                            onRemove = { viewModel.decreaseQuantity(item) }
-                        )
+                    if (newItems.isEmpty()) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+                                border = BorderStroke(1.dp, Color(0xFF383838))
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(24.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            imageVector = Icons.Default.LocalOffer,
+                                            contentDescription = null,
+                                            tint = Color(0xFF666666),
+                                            modifier = Modifier.size(36.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "لا توجد إضافات جديدة معروضة حالياً",
+                                            color = Color(0xFFAAAAAA),
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        items(newItems) { item ->
+                            val cartItem = cart[item.id.toString()]
+                            MenuItemRegularCard(
+                                item = item,
+                                cartQty = cartItem?.quantity ?: 0,
+                                lang = lang,
+                                badgeText = if (!item.hasDiscount) "جديد ✨" else null,
+                                badgeColor = Color(0xFF2E7D32),
+                                onAdd = { viewModel.addToCart(item) },
+                                onRemove = { viewModel.decreaseQuantity(item) }
+                            )
+                        }
                     }
                 }
             }

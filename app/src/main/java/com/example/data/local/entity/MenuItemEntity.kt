@@ -16,7 +16,8 @@ data class MenuItemEntity(
     val isSpecialOffer: Boolean = false,
     val iconName: String = "coffee",
     val customImageUri: String? = null,
-    val isAvailable: Boolean = true
+    val isAvailable: Boolean = true,
+    val showInOffers: Boolean = true
 ) {
     val effectivePrice: Double
         get() = discountedPrice ?: originalPrice
