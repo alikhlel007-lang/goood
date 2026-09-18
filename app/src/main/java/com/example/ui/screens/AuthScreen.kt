@@ -437,6 +437,10 @@ fun AuthScreen(
                                     email = email,
                                     pass = password,
                                     cafeName = cafeName,
+                                    onDirectSuccess = {
+                                        isLoading = false
+                                        onLoginSuccess()
+                                    },
                                     onCodeSent = {
                                         isLoading = false
                                         isVerifyingOtp = true

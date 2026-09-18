@@ -22,6 +22,15 @@ object EmailVerificationService {
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
+    fun isConfigured(): Boolean {
+        val apiKey = try {
+            BuildConfig.RESEND_API_KEY
+        } catch (e: Throwable) {
+            ""
+        }
+        return apiKey.isNotBlank() && apiKey != "MY_RESEND_API_KEY"
+    }
+
     /**
      * Sends a 6-digit verification code to the specified email using the Resend API.
      * In Resend testing mode (without custom domain), emails are delivered to onboarding/verified emails

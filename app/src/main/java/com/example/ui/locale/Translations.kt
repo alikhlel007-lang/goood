@@ -104,6 +104,12 @@ object Strings {
         "invalid_code" to Trans("رمز التحقق غير صحيح، يرجى المحاولة مرة أخرى", "Invalid verification code, please try again", "کۆدەکە هەڵەیە، تکایە دووبارە هەوڵبدەرەوە"),
         "code_expired" to Trans("انتهت صلاحية الرمز، يرجى طلب رمز جديد", "Code expired, please request a new one", "کاتی کۆدەکە بەسەرچوو، داوای کۆدی نوێ بکە"),
         "code_sent_success" to Trans("تم إرسال رمز التحقق إلى بريدك بنجاح", "Verification code sent to your email", "کۆدی پشتڕاستکردنەوە بۆ ئیمەیڵەکەت نێردرا"),
-        "sending_code" to Trans("جاري إرسال الرمز...", "Sending code...", "کۆد دەنێردرێت...")
+        "sending_code" to Trans("جاري إرسال الرمز...", "Sending code...", "کۆد دەنێردرێت..."),
+        "verification_link_sent" to Trans("تم إرسال رابط تأكيد الحساب إلى بريدك الإلكتروني! يرجى فتح بريدك والضغط على الرابط لتفعيل حسابك، ثم تسجيل الدخول.", "A verification link has been sent to your email! Please click the link to activate your account, then log in.", "بەستەری پشتڕاستکردنەوە بۆ ئیمەیڵەکەت نێردرا! تکایە سەردانی ئیمەیڵەکەت بکە و کلیك لەسەر بەستەرەکە بکە، پاشان بچۆ ژوورەوە."),
+        "check_email_title" to Trans("تم إرسال رابط التفعيل إلى بريدك", "Verification Link Sent", "بەستەری چالاککردن نێردرا بۆ ئیمەیڵەکەت"),
+        "check_email_desc" to Trans("أرسلنا رسالة تحقق إلى بريدك الإلكتروني. تفقد صندوق الوارد أو البريد غير الهام (Spam) واضغط على الرابط لتأكيد حسابك.", "We sent a verification email to your address. Check your inbox or Spam folder and click the link to confirm your account.", "نامەیەکی پشتڕاستکردنەوەمان بۆ ئیمەیڵەکەت نارد. سەیری ئیمەیڵەکەت یان سپام بکە و کلیك لەسەر بەستەرەکە بکە."),
+        "email_not_verified_warning" to Trans("لم يتم تأكيد البريد الإلكتروني بعد! يرجى الضغط على الرابط المرسل إلى بريدك.", "Your email is not verified yet! Please click the link sent to your email.", "ئیمەیڵەکەت هێشتا پشتڕاست نەکراوەتەوە! تکایە سەردانی ئەو بەستەرە بکە کە بۆت نێردراوە."),
+        "resend_verification_link" to Trans("إعادة إرسال رابط التأكيد", "Resend Verification Link", "دووبارە ناردنەوەی بەستەری پشتڕاستکردنەوە"),
+        "go_to_login" to Trans("الانتقال لتسجيل الدخول", "Go to Login", "بڕۆ بۆ چوونەژوورەوە")
     )
 }

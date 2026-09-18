@@ -12,9 +12,12 @@ import com.example.data.local.entity.OrderEntity
 import com.example.data.local.entity.TableEntity
 import com.example.data.local.entity.UserAccountEntity
 import com.example.data.firebase.FirestoreMenuSync
-import com.example.data.remote.EmailVerificationService
 import com.example.data.qr.QrCodeGenerator
 import com.example.data.repository.CafeRepository
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.userProfileChangeRequest
+import kotlinx.coroutines.tasks.await
 import com.example.ui.locale.AppLanguage
 import com.example.ui.theme.AppThemes
 import com.example.ui.theme.CornerStyle
@@ -442,7 +445,37 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun login(email: String, pass: String, onSuccess: (UserAccountEntity) -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
-            val user = repository.login(email.trim(), pass.trim())
+            val trimmedEmail = email.trim()
+            val trimmedPass = pass.trim()
+
+            // 1. Try checking with Firebase Auth if account exists in Firebase
+            val firebaseAuth = try { FirebaseAuth.getInstance() } catch (e: Exception) { null }
+            if (firebaseAuth != null) {
+                try {
+                    val authResult = firebaseAuth.signInWithEmailAndPassword(trimmedEmail, trimmedPass).await()
+                    val fbUser = authResult.user
+                    if (fbUser != null) {
+                        // Reload user state to get latest email verification status
+                        fbUser.reload().await()
+                        if (!fbUser.isEmailVerified) {
+                            launch(Dispatchers.Main) {
+                                onError("لم يتم تفعيل حسابك بعد! يرجى فتح الرسالة المرسلة لبريدك والضغط على رابط التأكيد.")
+                            }
+                            return@launch
+                        }
+                    }
+                } catch (e: com.google.firebase.auth.FirebaseAuthInvalidCredentialsException) {
+                    launch(Dispatchers.Main) { onError("كلمة المرور أو البريد الإلكتروني غير صحيح") }
+                    return@launch
+                } catch (e: com.google.firebase.auth.FirebaseAuthInvalidUserException) {
+                    // Might be a local fallback account (e.g. admin@cafe.com)
+                } catch (e: Exception) {
+                    // Network or other issue, allow fallback check below
+                }
+            }
+
+            // 2. Check local database
+            val user = repository.login(trimmedEmail, trimmedPass)
             launch(Dispatchers.Main) {
                 if (user != null) {
                     _currentUser.value = user
@@ -454,135 +487,197 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Pending registration state for email OTP verification
-    private var pendingOtpCode: String? = null
-    private var pendingOtpExpiry: Long = 0L
+    // Pending registration state for email verification
     private var pendingName: String = ""
     private var pendingEmail: String = ""
     private var pendingPass: String = ""
-    private var pendingRole: String = "OWNER"
     private var pendingCafeName: String = ""
 
-    fun sendRegistrationOtp(
+    /**
+     * Registers owner with Firebase Auth and sends a real Email Verification Link.
+     */
+    fun registerWithFirebaseEmailVerification(
         name: String,
         email: String,
         pass: String,
         cafeName: String,
-        onCodeSent: () -> Unit,
+        onVerificationLinkSent: () -> Unit,
         onError: (String) -> Unit
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             val trimmedEmail = email.trim()
+            val trimmedPass = pass.trim()
+            val trimmedName = name.trim()
+            val trimmedCafe = cafeName.trim()
+
             if (!android.util.Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()) {
                 launch(Dispatchers.Main) { onError("صيغة البريد الإلكتروني غير صحيحة") }
                 return@launch
             }
-
-            // Generate secure 6-digit random code
-            val code = (100000 + kotlin.random.Random.nextInt(900000)).toString()
-            pendingOtpCode = code
-            pendingOtpExpiry = System.currentTimeMillis() + (10 * 60 * 1000) // 10 minutes
-            pendingName = name.trim()
-            pendingEmail = trimmedEmail
-            pendingPass = pass.trim()
-            pendingCafeName = cafeName.trim()
-
-            val result = EmailVerificationService.sendVerificationCode(
-                recipientEmail = trimmedEmail,
-                code = code,
-                cafeName = cafeName.ifBlank { "كافيه النخيل" }
-            )
-
-            launch(Dispatchers.Main) {
-                if (result.isSuccess) {
-                    onCodeSent()
-                } else {
-                    onError(result.exceptionOrNull()?.message ?: "تعذر إرسال رمز التحقق إلى البريد")
-                }
+            if (trimmedPass.length < 6) {
+                launch(Dispatchers.Main) { onError("كلمة المرور يجب أن تكون 6 خانات على الأقل") }
+                return@launch
             }
-        }
-    }
 
-    fun verifyOtpAndCompleteRegistration(
-        enteredCode: String,
-        onSuccess: (UserAccountEntity) -> Unit,
-        onError: (String) -> Unit
-    ) {
-        val trimmedCode = enteredCode.trim()
-        val now = System.currentTimeMillis()
+            pendingName = trimmedName
+            pendingEmail = trimmedEmail
+            pendingPass = trimmedPass
+            pendingCafeName = trimmedCafe
 
-        if (pendingOtpCode == null || now > pendingOtpExpiry) {
-            onError("انتهت صلاحية الرمز، يرجى طلب رمز جديد")
-            return
-        }
-
-        if (trimmedCode != pendingOtpCode) {
-            onError("رمز التحقق غير صحيح، يرجى المحاولة مجدداً")
-            return
-        }
-
-        // Code verified, proceed with registration
-        viewModelScope.launch(Dispatchers.IO) {
             try {
-                // Generate a unique cafe ID for the newly registered cafe!
-                val cleanPrefix = pendingCafeName.filter { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' }.lowercase().take(8)
+                // Generate a unique cafe ID
+                val cleanPrefix = trimmedCafe.filter { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' }.lowercase().take(8)
                 val randomSuffix = UUID.randomUUID().toString().take(6).lowercase()
                 val newCafeId = if (cleanPrefix.isNotBlank()) "cafe_${cleanPrefix}_$randomSuffix" else "cafe_$randomSuffix"
+                val actualCafeName = trimmedCafe.ifBlank { "كافيه $trimmedName" }
 
-                val user = repository.registerUser(
-                    pendingName,
-                    pendingEmail,
-                    pendingPass,
-                    pendingRole,
+                val firebaseAuth = FirebaseAuth.getInstance()
+                
+                // 1. Create user in Firebase Auth
+                var fbUser = try {
+                    val createResult = firebaseAuth.createUserWithEmailAndPassword(trimmedEmail, trimmedPass).await()
+                    createResult.user
+                } catch (collision: FirebaseAuthUserCollisionException) {
+                    // If user already registered in Firebase, sign in to send verification link
+                    val signInResult = firebaseAuth.signInWithEmailAndPassword(trimmedEmail, trimmedPass).await()
+                    signInResult.user
+                }
+
+                if (fbUser != null) {
+                    // Update display name
+                    try {
+                        val profileUpdates = userProfileChangeRequest {
+                            displayName = trimmedName
+                        }
+                        fbUser.updateProfile(profileUpdates).await()
+                    } catch (e: Exception) {
+                        // Non-blocking
+                    }
+
+                    // 2. Send official Firebase Email Verification Link
+                    fbUser.sendEmailVerification().await()
+                }
+
+                // 3. Register user in local database and create cafe profile
+                val localUser = repository.registerUser(
+                    trimmedName,
+                    trimmedEmail,
+                    trimmedPass,
+                    "OWNER",
                     newCafeId
                 )
-                val cafeName = pendingCafeName.ifBlank { "كافيه $pendingName" }
                 val newCafe = CafeEntity(
                     id = newCafeId,
-                    name = cafeName,
+                    name = actualCafeName,
                     logoIconName = "coffee",
-                    ownerEmail = pendingEmail
+                    ownerEmail = trimmedEmail
                 )
                 repository.saveCafeProfile(newCafe)
-                repository.seedNewCafeDefaults(newCafeId, cafeName)
-
-                // Sync new cafe profile to Firestore so web page works immediately
-                firestoreSync.syncCafeProfileToFirestore(newCafeId, cafeName, "coffee")
+                repository.seedNewCafeDefaults(newCafeId, actualCafeName)
+                firestoreSync.syncCafeProfileToFirestore(newCafeId, actualCafeName, "coffee")
                 val starterItems = repository.getAllMenuItems(newCafeId).firstOrNull() ?: emptyList()
                 if (starterItems.isNotEmpty()) {
                     firestoreSync.seedLocalItemsToFirestore(newCafeId, starterItems)
                 }
 
-                pendingOtpCode = null // consume code
                 launch(Dispatchers.Main) {
-                    _currentUser.value = user
-                    onSuccess(user)
+                    onVerificationLinkSent()
                 }
             } catch (e: Exception) {
                 launch(Dispatchers.Main) {
-                    onError(e.message ?: "فشل إتمام إنشاء الحساب")
+                    val msg = e.localizedMessage ?: "حدث خطأ أثناء إنشاء الحساب"
+                    onError(msg)
                 }
             }
         }
     }
 
-    fun resendOtp(
-        onCodeSent: () -> Unit,
+    /**
+     * Resends the Firebase email verification link.
+     */
+    fun resendVerificationEmail(
+        email: String,
+        pass: String,
+        onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
-        if (pendingEmail.isBlank()) {
-            onError("لا توجد بيانات تسجيل معلقة")
-            return
+        viewModelScope.launch(Dispatchers.IO) {
+            val targetEmail = email.ifBlank { pendingEmail }.trim()
+            val targetPass = pass.ifBlank { pendingPass }.trim()
+
+            if (targetEmail.isBlank() || targetPass.isBlank()) {
+                launch(Dispatchers.Main) { onError("يرجى إدخال البريد الإلكتروني وكلمة المرور") }
+                return@launch
+            }
+
+            try {
+                val firebaseAuth = FirebaseAuth.getInstance()
+                val user = firebaseAuth.currentUser ?: run {
+                    val signInResult = firebaseAuth.signInWithEmailAndPassword(targetEmail, targetPass).await()
+                    signInResult.user
+                }
+
+                if (user != null) {
+                    user.sendEmailVerification().await()
+                    launch(Dispatchers.Main) { onSuccess() }
+                } else {
+                    launch(Dispatchers.Main) { onError("تعذر العثور على حسابك لإعادة الإرسال") }
+                }
+            } catch (e: Exception) {
+                launch(Dispatchers.Main) {
+                    onError(e.localizedMessage ?: "فشل إعادة إرسال الرابط")
+                }
+            }
         }
-        sendRegistrationOtp(
-            name = pendingName,
-            email = pendingEmail,
-            pass = pendingPass,
-            cafeName = pendingCafeName,
-            onCodeSent = onCodeSent,
-            onError = onError
-        )
     }
+
+    /**
+     * Checks if the user has clicked the verification link and completes sign-in.
+     */
+    fun checkEmailVerifiedAndProceed(
+        email: String,
+        pass: String,
+        onSuccess: (UserAccountEntity) -> Unit,
+        onNotVerifiedYet: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val targetEmail = email.ifBlank { pendingEmail }.trim()
+            val targetPass = pass.ifBlank { pendingPass }.trim()
+
+            try {
+                val firebaseAuth = FirebaseAuth.getInstance()
+                val signInResult = firebaseAuth.signInWithEmailAndPassword(targetEmail, targetPass).await()
+                val user = signInResult.user
+
+                if (user != null) {
+                    user.reload().await()
+                    if (user.isEmailVerified) {
+                        val localUser = repository.login(targetEmail, targetPass)
+                        launch(Dispatchers.Main) {
+                            if (localUser != null) {
+                                _currentUser.value = localUser
+                                onSuccess(localUser)
+                            } else {
+                                onError("تم تأكيد البريد بنجاح! يرجى تسجيل الدخول.")
+                            }
+                        }
+                    } else {
+                        launch(Dispatchers.Main) {
+                            onNotVerifiedYet()
+                        }
+                    }
+                } else {
+                    launch(Dispatchers.Main) { onError("تعذر التحقق من الحساب") }
+                }
+            } catch (e: Exception) {
+                launch(Dispatchers.Main) {
+                    onError(e.localizedMessage ?: "حدث خطأ أثناء فحص حالة التفعيل")
+                }
+            }
+        }
+    }
+
 
     fun register(name: String, email: String, pass: String, role: String, onSuccess: (UserAccountEntity) -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
