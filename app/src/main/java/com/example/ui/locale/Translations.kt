@@ -94,6 +94,16 @@ object Strings {
         "bill_settled_success" to Trans("تم تسديد الفاتورة بنجاح!", "Invoice settled successfully!", "پسوولەکە بە سەرکەوتوویی درا!"),
         "discount_badge" to Trans("خصم", "OFF", "داشکاندن"),
         "no_orders_yet" to Trans("لا توجد طلبات في هذه المرحلة حالياً", "No orders in this stage", "هیچ داواکارییەک لەم قۆناغەدا نییە"),
-        "all_paid_success" to Trans("جميع الطلبات مسددة لهذه الطاولة", "All orders are settled", "هەموو داواکارییەکان دراون")
+        "all_paid_success" to Trans("جميع الطلبات مسددة لهذه الطاولة", "All orders are settled", "هەموو داواکارییەکان دراون"),
+        "verification_code" to Trans("رمز التحقق", "Verification Code", "کۆدی پشتڕاستکردنەوە"),
+        "enter_code_sent_to" to Trans("أدخل رمز التحقق المكون من 6 أرقام المرسل إلى:", "Enter the 6-digit code sent to:", "کۆدە ٦ ژمارەییەکە بنووسە کە نێردرا بۆ:"),
+        "verify_and_continue" to Trans("تأكيد ومتابعة", "Verify & Continue", "پشتڕاستکردنەوە و بەردەوامبوون"),
+        "resend_code" to Trans("إعادة إرسال الرمز", "Resend Code", "دووبارە ناردنەوەی کۆد"),
+        "resend_in" to Trans("إعادة الإرسال بعد", "Resend in", "دووبارە ناردنەوە لە دوای"),
+        "seconds" to Trans("ثانية", "seconds", "چرکە"),
+        "invalid_code" to Trans("رمز التحقق غير صحيح، يرجى المحاولة مرة أخرى", "Invalid verification code, please try again", "کۆدەکە هەڵەیە، تکایە دووبارە هەوڵبدەرەوە"),
+        "code_expired" to Trans("انتهت صلاحية الرمز، يرجى طلب رمز جديد", "Code expired, please request a new one", "کاتی کۆدەکە بەسەرچوو، داوای کۆدی نوێ بکە"),
+        "code_sent_success" to Trans("تم إرسال رمز التحقق إلى بريدك بنجاح", "Verification code sent to your email", "کۆدی پشتڕاستکردنەوە بۆ ئیمەیڵەکەت نێردرا"),
+        "sending_code" to Trans("جاري إرسال الرمز...", "Sending code...", "کۆد دەنێردرێت...")
     )
 }

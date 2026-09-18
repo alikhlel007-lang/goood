@@ -95,7 +95,7 @@ class CafeRepository(private val cafeDao: CafeDao) {
         customUri: String? = null,
         showInOffers: Boolean = false,
         offerBackgroundUri: String? = null
-    ) {
+    ): MenuItemEntity {
         val item = MenuItemEntity(
             id = UUID.randomUUID().toString(),
             cafeId = cafeId,
@@ -109,6 +109,7 @@ class CafeRepository(private val cafeDao: CafeDao) {
             offerBackgroundImageUri = offerBackgroundUri
         )
         cafeDao.insertMenuItem(item)
+        return item
     }
 
     suspend fun updateMenuItem(item: MenuItemEntity) {
@@ -124,9 +125,9 @@ class CafeRepository(private val cafeDao: CafeDao) {
         newPrice: Double?,
         percentage: Int?,
         isSpecialOffer: Boolean
-    ) {
-        val items = cafeDao.getAllMenuItems(DEFAULT_CAFE_ID).firstOrNull() ?: return
-        val target = items.firstOrNull { it.id == itemId } ?: return
+    ): MenuItemEntity? {
+        val items = cafeDao.getAllMenuItems(DEFAULT_CAFE_ID).firstOrNull() ?: return null
+        val target = items.firstOrNull { it.id == itemId } ?: return null
         val discounted = if (percentage != null && percentage > 0) {
             roundTo250IQD(target.originalPrice * (1.0 - (percentage / 100.0)))
         } else if (newPrice != null) {
@@ -145,15 +146,17 @@ class CafeRepository(private val cafeDao: CafeDao) {
             isSpecialOffer = isSpecialOffer
         )
         cafeDao.updateMenuItem(updated)
+        return updated
     }
 
     suspend fun applyDiscountToCategory(
         categoryId: String,
         percentage: Int?,
         isSpecialOffer: Boolean
-    ) {
-        val items = cafeDao.getAllMenuItems(DEFAULT_CAFE_ID).firstOrNull() ?: return
+    ): List<MenuItemEntity> {
+        val items = cafeDao.getAllMenuItems(DEFAULT_CAFE_ID).firstOrNull() ?: return emptyList()
         val categoryItems = items.filter { it.categoryId == categoryId }
+        val updatedList = mutableListOf<MenuItemEntity>()
         for (item in categoryItems) {
             val discounted = if (percentage != null && percentage > 0) {
                 roundTo250IQD(item.originalPrice * (1.0 - (percentage / 100.0)))
@@ -164,7 +167,9 @@ class CafeRepository(private val cafeDao: CafeDao) {
                 isSpecialOffer = isSpecialOffer
             )
             cafeDao.updateMenuItem(updated)
+            updatedList.add(updated)
         }
+        return updatedList
     }
 
     suspend fun updateTableCountAndRegenerate(cafeId: String, newCount: Int, defaultType: String = "INDOOR") {

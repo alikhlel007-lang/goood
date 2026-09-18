@@ -2211,6 +2211,22 @@ fun TablesManagementScreen(
                         Text(Strings.get("download_pdf", lang), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = {
+                        val hostingUrl = "https://alikhelel007-lang.github.io/goood/?cafe=default_cafe&table=1"
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(hostingUrl))
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("معاينة صفحة ويب الزبائن في المتصفح", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
 

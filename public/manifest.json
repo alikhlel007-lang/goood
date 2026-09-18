@@ -1,0 +1,24 @@
+{
+  "name": "المينو الإلكتروني للزبائن",
+  "short_name": "المينو",
+  "description": "مينو الكافيه الإلكتروني وطلب المأكولات والمشروبات مباشرة من الطاولة",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#141414",
+  "theme_color": "#141414",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "assets/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

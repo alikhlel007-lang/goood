@@ -11,6 +11,8 @@ import com.example.data.local.entity.MenuItemEntity
 import com.example.data.local.entity.OrderEntity
 import com.example.data.local.entity.TableEntity
 import com.example.data.local.entity.UserAccountEntity
+import com.example.data.firebase.FirestoreMenuSync
+import com.example.data.remote.EmailVerificationService
 import com.example.data.qr.QrCodeGenerator
 import com.example.data.repository.CafeRepository
 import com.example.ui.locale.AppLanguage
@@ -24,6 +26,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -41,6 +44,7 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
     private val db = AppDatabase.getInstance(application)
     private val repository = CafeRepository(db.cafeDao())
     private val prefs = application.getSharedPreferences("cafe_app_prefs", Context.MODE_PRIVATE)
+    private val firestoreSync = FirestoreMenuSync(db.cafeDao(), viewModelScope)
 
     private val _currentThemePreset = MutableStateFlow(
         AppThemes.fromId(prefs.getString("selected_theme_id", AppThemes.MIDNIGHT_GOLD.id))
@@ -115,6 +119,18 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
     init {
         viewModelScope.launch(Dispatchers.IO) {
             repository.seedInitialDataIfNeeded()
+            // Start listening to real-time changes from Firestore
+            firestoreSync.startListening(CafeRepository.DEFAULT_CAFE_ID)
+            // If Firestore is empty, seed with initial items
+            val existing = repository.getAllMenuItems(CafeRepository.DEFAULT_CAFE_ID)
+            val initialItems = existing.firstOrNull() ?: emptyList()
+            if (initialItems.isNotEmpty()) {
+                firestoreSync.seedLocalItemsToFirestore(CafeRepository.DEFAULT_CAFE_ID, initialItems)
+            }
+            val initialCafe = repository.currentCafe.firstOrNull()
+            if (initialCafe != null) {
+                firestoreSync.syncCafeProfileToFirestore(initialCafe.id, initialCafe.name, initialCafe.logoIconName)
+            }
         }
     }
 
@@ -246,13 +262,13 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
     fun saveCafeProfile(name: String, iconName: String, customUri: String?) {
         val cafe = currentCafe.value ?: return
         viewModelScope.launch(Dispatchers.IO) {
-            repository.saveCafeProfile(
-                cafe.copy(
-                    name = name,
-                    logoIconName = iconName,
-                    logoCustomUri = customUri
-                )
+            val updated = cafe.copy(
+                name = name,
+                logoIconName = iconName,
+                logoCustomUri = customUri
             )
+            repository.saveCafeProfile(updated)
+            firestoreSync.syncCafeProfileToFirestore(updated.id, updated.name, updated.logoIconName)
         }
     }
 
@@ -291,61 +307,82 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
         offerBackgroundUri: String? = null
     ) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.addMenuItem(CafeRepository.DEFAULT_CAFE_ID, categoryId, name, description, price, iconName, customUri, showInOffers, offerBackgroundUri)
+            val item = repository.addMenuItem(CafeRepository.DEFAULT_CAFE_ID, categoryId, name, description, price, iconName, customUri, showInOffers, offerBackgroundUri)
+            firestoreSync.syncMenuItemToFirestore(item)
         }
     }
 
     fun updateMenuItemOfferBackground(item: MenuItemEntity, bgUri: String?) {
+        val updated = item.copy(offerBackgroundImageUri = bgUri)
         viewModelScope.launch(Dispatchers.IO) {
-            repository.updateMenuItem(item.copy(offerBackgroundImageUri = bgUri))
+            repository.updateMenuItem(updated)
+            firestoreSync.syncMenuItemToFirestore(updated)
         }
     }
 
     fun updateMenuItem(item: MenuItemEntity) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.updateMenuItem(item)
+            firestoreSync.syncMenuItemToFirestore(item)
         }
     }
 
     fun toggleMenuItemVisibility(item: MenuItemEntity) {
+        val updated = item.copy(isAvailable = !item.isAvailable)
         viewModelScope.launch(Dispatchers.IO) {
-            repository.updateMenuItem(item.copy(isAvailable = !item.isAvailable))
+            repository.updateMenuItem(updated)
+            firestoreSync.syncMenuItemToFirestore(updated)
         }
     }
 
     fun toggleMenuItemOffersVisibility(item: MenuItemEntity) {
+        val updated = item.copy(showInOffers = !item.showInOffers)
         viewModelScope.launch(Dispatchers.IO) {
-            repository.updateMenuItem(item.copy(showInOffers = !item.showInOffers))
+            repository.updateMenuItem(updated)
+            firestoreSync.syncMenuItemToFirestore(updated)
         }
     }
 
     fun deleteMenuItem(itemId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.deleteMenuItem(itemId)
+            firestoreSync.deleteMenuItemFromFirestore(CafeRepository.DEFAULT_CAFE_ID, itemId)
         }
     }
 
     fun applyDiscountToItem(itemId: String, newPrice: Double?, percentage: Int?, isSpecialOffer: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.applyDiscountToItem(itemId, newPrice, percentage, isSpecialOffer)
+            val updated = repository.applyDiscountToItem(itemId, newPrice, percentage, isSpecialOffer)
+            if (updated != null) {
+                firestoreSync.syncMenuItemToFirestore(updated)
+            }
         }
     }
 
     fun removeDiscount(itemId: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.applyDiscountToItem(itemId, null, null, false)
+            val updated = repository.applyDiscountToItem(itemId, null, null, false)
+            if (updated != null) {
+                firestoreSync.syncMenuItemToFirestore(updated)
+            }
         }
     }
 
     fun applyDiscountToCategory(categoryId: String, percentage: Int?, isSpecialOffer: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.applyDiscountToCategory(categoryId, percentage, isSpecialOffer)
+            val updatedList = repository.applyDiscountToCategory(categoryId, percentage, isSpecialOffer)
+            for (item in updatedList) {
+                firestoreSync.syncMenuItemToFirestore(item)
+            }
         }
     }
 
     fun removeCategoryDiscount(categoryId: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.applyDiscountToCategory(categoryId, null, false)
+            val updatedList = repository.applyDiscountToCategory(categoryId, null, false)
+            for (item in updatedList) {
+                firestoreSync.syncMenuItemToFirestore(item)
+            }
         }
     }
 
@@ -393,6 +430,124 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // Pending registration state for email OTP verification
+    private var pendingOtpCode: String? = null
+    private var pendingOtpExpiry: Long = 0L
+    private var pendingName: String = ""
+    private var pendingEmail: String = ""
+    private var pendingPass: String = ""
+    private var pendingRole: String = "OWNER"
+    private var pendingCafeName: String = ""
+
+    fun sendRegistrationOtp(
+        name: String,
+        email: String,
+        pass: String,
+        cafeName: String,
+        onCodeSent: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val trimmedEmail = email.trim()
+            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()) {
+                launch(Dispatchers.Main) { onError("صيغة البريد الإلكتروني غير صحيحة") }
+                return@launch
+            }
+
+            // Generate secure 6-digit random code
+            val code = (100000 + kotlin.random.Random.nextInt(900000)).toString()
+            pendingOtpCode = code
+            pendingOtpExpiry = System.currentTimeMillis() + (10 * 60 * 1000) // 10 minutes
+            pendingName = name.trim()
+            pendingEmail = trimmedEmail
+            pendingPass = pass.trim()
+            pendingCafeName = cafeName.trim()
+
+            val result = EmailVerificationService.sendVerificationCode(
+                recipientEmail = trimmedEmail,
+                code = code,
+                cafeName = cafeName.ifBlank { "كافيه النخيل" }
+            )
+
+            launch(Dispatchers.Main) {
+                if (result.isSuccess) {
+                    onCodeSent()
+                } else {
+                    onError(result.exceptionOrNull()?.message ?: "تعذر إرسال رمز التحقق إلى البريد")
+                }
+            }
+        }
+    }
+
+    fun verifyOtpAndCompleteRegistration(
+        enteredCode: String,
+        onSuccess: (UserAccountEntity) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val trimmedCode = enteredCode.trim()
+        val now = System.currentTimeMillis()
+
+        if (pendingOtpCode == null || now > pendingOtpExpiry) {
+            onError("انتهت صلاحية الرمز، يرجى طلب رمز جديد")
+            return
+        }
+
+        if (trimmedCode != pendingOtpCode) {
+            onError("رمز التحقق غير صحيح، يرجى المحاولة مجدداً")
+            return
+        }
+
+        // Code verified, proceed with registration
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val user = repository.registerUser(
+                    pendingName,
+                    pendingEmail,
+                    pendingPass,
+                    pendingRole,
+                    CafeRepository.DEFAULT_CAFE_ID
+                )
+                if (pendingCafeName.isNotBlank()) {
+                    repository.saveCafeProfile(
+                        CafeEntity(
+                            id = CafeRepository.DEFAULT_CAFE_ID,
+                            name = pendingCafeName,
+                            logoIconName = "coffee",
+                            ownerEmail = pendingEmail
+                        )
+                    )
+                }
+                pendingOtpCode = null // consume code
+                launch(Dispatchers.Main) {
+                    _currentUser.value = user
+                    onSuccess(user)
+                }
+            } catch (e: Exception) {
+                launch(Dispatchers.Main) {
+                    onError(e.message ?: "فشل إتمام إنشاء الحساب")
+                }
+            }
+        }
+    }
+
+    fun resendOtp(
+        onCodeSent: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        if (pendingEmail.isBlank()) {
+            onError("لا توجد بيانات تسجيل معلقة")
+            return
+        }
+        sendRegistrationOtp(
+            name = pendingName,
+            email = pendingEmail,
+            pass = pendingPass,
+            cafeName = pendingCafeName,
+            onCodeSent = onCodeSent,
+            onError = onError
+        )
+    }
+
     fun register(name: String, email: String, pass: String, role: String, onSuccess: (UserAccountEntity) -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -423,5 +578,10 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
             role = "CUSTOMER",
             cafeId = CafeRepository.DEFAULT_CAFE_ID
         )
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        firestoreSync.stopListening()
     }
 }
