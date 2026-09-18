@@ -218,7 +218,7 @@ object QrCodeGenerator {
 
                 // QR Code
                 val qrSize = (cardWidth * 0.58f).toInt()
-                val webUrl = "https://alikhelel007-lang.github.io/goood/?cafe=${table.cafeId}&table=${table.tableNumber}&token=${table.qrToken}"
+                val webUrl = "https://alikhlel007-lang.github.io/goood/?cafe=${table.cafeId}&table=${table.tableNumber}&token=${table.qrToken}"
                 val qrBitmap = generateQrBitmap(webUrl, qrSize)
                 val qrLeft = centerX - qrSize / 2f
                 val qrTop = top + 66f

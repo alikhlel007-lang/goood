@@ -45,6 +45,8 @@ class CafeRepository(private val cafeDao: CafeDao) {
 
     val currentCafe: Flow<CafeEntity?> = cafeDao.getFirstCafe()
 
+    fun getCafe(cafeId: String): Flow<CafeEntity?> = cafeDao.getCafe(cafeId)
+
     fun getCategories(cafeId: String): Flow<List<CategoryEntity>> = cafeDao.getCategories(cafeId)
 
     fun getAllMenuItems(cafeId: String): Flow<List<MenuItemEntity>> = cafeDao.getAllMenuItems(cafeId)
@@ -434,6 +436,128 @@ class CafeRepository(private val cafeDao: CafeDao) {
                 tableNumber = i,
                 tableType = type,
                 qrToken = "CAFE-IRAQ-TBL-$i-${UUID.randomUUID().toString().take(6).uppercase()}"
+            )
+        }
+        cafeDao.insertTables(tableList)
+    }
+
+    /**
+     * Seeds categories, default starter menu items, and 10 tables for a newly registered cafe.
+     */
+    suspend fun seedNewCafeDefaults(cafeId: String, cafeName: String) {
+        val existingCats = cafeDao.getCategories(cafeId).firstOrNull() ?: emptyList()
+        if (existingCats.isNotEmpty()) return
+
+        val catDrinksHot = CategoryEntity(
+            id = "cat_hot_${UUID.randomUUID().toString().take(6)}",
+            cafeId = cafeId,
+            name = "مشروبات ساخنة",
+            iconName = "coffee",
+            sortOrder = 1
+        )
+        val catDrinksCold = CategoryEntity(
+            id = "cat_cold_${UUID.randomUUID().toString().take(6)}",
+            cafeId = cafeId,
+            name = "مشروبات باردة وعصائر",
+            iconName = "cold_drink",
+            sortOrder = 2
+        )
+        val catSweets = CategoryEntity(
+            id = "cat_sweets_${UUID.randomUUID().toString().take(6)}",
+            cafeId = cafeId,
+            name = "الحلويات والمخبوزات",
+            iconName = "cake",
+            sortOrder = 3
+        )
+        val catSnacks = CategoryEntity(
+            id = "cat_snacks_${UUID.randomUUID().toString().take(6)}",
+            cafeId = cafeId,
+            name = "الوجبات الخفيفة",
+            iconName = "breakfast",
+            sortOrder = 4
+        )
+        val catHookah = CategoryEntity(
+            id = "cat_hookah_${UUID.randomUUID().toString().take(6)}",
+            cafeId = cafeId,
+            name = "الأراكيل والمعسل",
+            iconName = "hookah",
+            sortOrder = 5
+        )
+
+        cafeDao.insertCategory(catDrinksHot)
+        cafeDao.insertCategory(catDrinksCold)
+        cafeDao.insertCategory(catSweets)
+        cafeDao.insertCategory(catSnacks)
+        cafeDao.insertCategory(catHookah)
+
+        val starterItems = listOf(
+            MenuItemEntity(
+                id = UUID.randomUUID().toString(),
+                cafeId = cafeId,
+                categoryId = catDrinksHot.id,
+                name = "شاي مهيل",
+                description = "شاي مخدر على الفحم مع الهيل الفاخر",
+                originalPrice = 1500.0,
+                iconName = "tea"
+            ),
+            MenuItemEntity(
+                id = UUID.randomUUID().toString(),
+                cafeId = cafeId,
+                categoryId = catDrinksHot.id,
+                name = "قهوة تركي مخصوص",
+                description = "بن عربي أصيل مع رغوة كثيفة وهيل",
+                originalPrice = 2500.0,
+                iconName = "coffee"
+            ),
+            MenuItemEntity(
+                id = UUID.randomUUID().toString(),
+                cafeId = cafeId,
+                categoryId = catDrinksCold.id,
+                name = "ليمون ونعناع منعش",
+                description = "عصير ليمون طازج مع أوراق النعناع والثلج المجروش",
+                originalPrice = 3000.0,
+                iconName = "cold_drink"
+            ),
+            MenuItemEntity(
+                id = UUID.randomUUID().toString(),
+                cafeId = cafeId,
+                categoryId = catSweets.id,
+                name = "كيك شوكولاتة",
+                description = "قطعة كيك طرية مع صوص الشوكولاتة اللذيذة",
+                originalPrice = 4500.0,
+                discountedPrice = 4000.0,
+                discountPercentage = 11,
+                showInOffers = true,
+                iconName = "cake"
+            ),
+            MenuItemEntity(
+                id = UUID.randomUUID().toString(),
+                cafeId = cafeId,
+                categoryId = catHookah.id,
+                name = "أركيلة تفاحتين فاخر",
+                description = "رأس فخاري مجهز بأجود أنواع الفحم الطبيعي",
+                originalPrice = 7000.0,
+                iconName = "hookah"
+            )
+        )
+        for (item in starterItems) {
+            cafeDao.insertMenuItem(item)
+        }
+
+        // 10 Tables with cafe-specific secure tokens
+        val shortPrefix = cafeId.takeLast(4).uppercase()
+        val tableList = (1..10).map { i ->
+            val type = when {
+                i in 1..3 -> "VIP"
+                i in 4..7 -> "OUTDOOR"
+                else -> "INDOOR"
+            }
+            TableEntity(
+                id = "${cafeId}_tbl_$i",
+                cafeId = cafeId,
+                tableNumber = i,
+                tableType = type,
+                qrToken = "CAFE-$shortPrefix-TBL-$i-${UUID.randomUUID().toString().take(6).uppercase()}"
             )
         }
         cafeDao.insertTables(tableList)

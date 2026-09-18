@@ -2216,7 +2216,8 @@ fun TablesManagementScreen(
 
                 OutlinedButton(
                     onClick = {
-                        val hostingUrl = "https://alikhelel007-lang.github.io/goood/?cafe=default_cafe&table=1"
+                        val currentCid = viewModel.activeCafeId.value
+                        val hostingUrl = "https://alikhlel007-lang.github.io/goood/?cafe=$currentCid&table=1"
                         val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(hostingUrl))
                         context.startActivity(intent)
                     },

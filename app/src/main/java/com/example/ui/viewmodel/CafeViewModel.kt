@@ -21,18 +21,22 @@ import com.example.ui.theme.CornerStyle
 import com.example.ui.theme.ThemeMode
 import com.example.ui.theme.ThemePreset
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.util.UUID
 
 data class CartItem(
     val item: MenuItemEntity,
@@ -71,23 +75,39 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
     private val _currentUser = MutableStateFlow<UserAccountEntity?>(null)
     val currentUser: StateFlow<UserAccountEntity?> = _currentUser.asStateFlow()
 
-    val currentCafe: StateFlow<CafeEntity?> = repository.currentCafe
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val activeCafeId: StateFlow<String> = _currentUser.map { user ->
+        user?.cafeId ?: prefs.getString("last_active_cafe_id", CafeRepository.DEFAULT_CAFE_ID) ?: CafeRepository.DEFAULT_CAFE_ID
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, prefs.getString("last_active_cafe_id", CafeRepository.DEFAULT_CAFE_ID) ?: CafeRepository.DEFAULT_CAFE_ID)
 
-    val categories: StateFlow<List<CategoryEntity>> = repository.getCategories(CafeRepository.DEFAULT_CAFE_ID)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val currentCafe: StateFlow<CafeEntity?> = activeCafeId.flatMapLatest { cid ->
+        repository.getCafe(cid)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    val menuItems: StateFlow<List<MenuItemEntity>> = repository.getAllMenuItems(CafeRepository.DEFAULT_CAFE_ID)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val categories: StateFlow<List<CategoryEntity>> = activeCafeId.flatMapLatest { cid ->
+        repository.getCategories(cid)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val specialOffers: StateFlow<List<MenuItemEntity>> = repository.getSpecialOffers(CafeRepository.DEFAULT_CAFE_ID)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val menuItems: StateFlow<List<MenuItemEntity>> = activeCafeId.flatMapLatest { cid ->
+        repository.getAllMenuItems(cid)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val tables: StateFlow<List<TableEntity>> = repository.getTables(CafeRepository.DEFAULT_CAFE_ID)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val specialOffers: StateFlow<List<MenuItemEntity>> = activeCafeId.flatMapLatest { cid ->
+        repository.getSpecialOffers(cid)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allOrders: StateFlow<List<OrderEntity>> = repository.getAllOrders(CafeRepository.DEFAULT_CAFE_ID)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val tables: StateFlow<List<TableEntity>> = activeCafeId.flatMapLatest { cid ->
+        repository.getTables(cid)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val allOrders: StateFlow<List<OrderEntity>> = activeCafeId.flatMapLatest { cid ->
+        repository.getAllOrders(cid)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Active customer table
     private val _selectedCustomerTable = MutableStateFlow(1)
@@ -119,17 +139,21 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
     init {
         viewModelScope.launch(Dispatchers.IO) {
             repository.seedInitialDataIfNeeded()
-            // Start listening to real-time changes from Firestore
-            firestoreSync.startListening(CafeRepository.DEFAULT_CAFE_ID)
-            // If Firestore is empty, seed with initial items
-            val existing = repository.getAllMenuItems(CafeRepository.DEFAULT_CAFE_ID)
-            val initialItems = existing.firstOrNull() ?: emptyList()
-            if (initialItems.isNotEmpty()) {
-                firestoreSync.seedLocalItemsToFirestore(CafeRepository.DEFAULT_CAFE_ID, initialItems)
-            }
-            val initialCafe = repository.currentCafe.firstOrNull()
-            if (initialCafe != null) {
-                firestoreSync.syncCafeProfileToFirestore(initialCafe.id, initialCafe.name, initialCafe.logoIconName)
+        }
+
+        viewModelScope.launch {
+            activeCafeId.collectLatest { cid ->
+                prefs.edit().putString("last_active_cafe_id", cid).apply()
+                // Sync profile & menu items for active cafe to Firestore
+                val cafe = repository.getCafe(cid).firstOrNull()
+                if (cafe != null) {
+                    firestoreSync.syncCafeProfileToFirestore(cafe.id, cafe.name, cafe.logoIconName)
+                }
+                val items = repository.getAllMenuItems(cid).firstOrNull() ?: emptyList()
+                if (items.isNotEmpty()) {
+                    firestoreSync.seedLocalItemsToFirestore(cid, items)
+                }
+                firestoreSync.startListening(cid)
             }
         }
     }
@@ -225,7 +249,7 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             repository.placeOrder(
-                cafeId = CafeRepository.DEFAULT_CAFE_ID,
+                cafeId = activeCafeId.value,
                 tableNumber = targetTable,
                 customerName = name,
                 orderNotes = orderNotesInput.value.trim(),
@@ -255,7 +279,7 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun payWholeTable(tableNumber: Int) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.settleTableOrdersCombined(CafeRepository.DEFAULT_CAFE_ID, tableNumber)
+            repository.settleTableOrdersCombined(activeCafeId.value, tableNumber)
         }
     }
 
@@ -274,7 +298,7 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addCategory(name: String, iconName: String, customUri: String? = null) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.addCategory(CafeRepository.DEFAULT_CAFE_ID, name, iconName, customUri)
+            repository.addCategory(activeCafeId.value, name, iconName, customUri)
         }
     }
 
@@ -307,7 +331,7 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
         offerBackgroundUri: String? = null
     ) {
         viewModelScope.launch(Dispatchers.IO) {
-            val item = repository.addMenuItem(CafeRepository.DEFAULT_CAFE_ID, categoryId, name, description, price, iconName, customUri, showInOffers, offerBackgroundUri)
+            val item = repository.addMenuItem(activeCafeId.value, categoryId, name, description, price, iconName, customUri, showInOffers, offerBackgroundUri)
             firestoreSync.syncMenuItemToFirestore(item)
         }
     }
@@ -346,7 +370,7 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteMenuItem(itemId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.deleteMenuItem(itemId)
-            firestoreSync.deleteMenuItemFromFirestore(CafeRepository.DEFAULT_CAFE_ID, itemId)
+            firestoreSync.deleteMenuItemFromFirestore(activeCafeId.value, itemId)
         }
     }
 
@@ -388,20 +412,20 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateTablesCount(newCount: Int) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.updateTableCountAndRegenerate(CafeRepository.DEFAULT_CAFE_ID, newCount)
+            repository.updateTableCountAndRegenerate(activeCafeId.value, newCount)
         }
     }
 
     fun updateTableType(tableNum: Int, type: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.updateTableType(CafeRepository.DEFAULT_CAFE_ID, tableNum, type)
+            repository.updateTableType(activeCafeId.value, tableNum, type)
         }
     }
 
     fun regenerateAllQrCodes() {
         val currentCount = tables.value.size.coerceAtLeast(1)
         viewModelScope.launch(Dispatchers.IO) {
-            repository.updateTableCountAndRegenerate(CafeRepository.DEFAULT_CAFE_ID, currentCount)
+            repository.updateTableCountAndRegenerate(activeCafeId.value, currentCount)
         }
     }
 
@@ -500,23 +524,35 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
         // Code verified, proceed with registration
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                // Generate a unique cafe ID for the newly registered cafe!
+                val cleanPrefix = pendingCafeName.filter { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' }.lowercase().take(8)
+                val randomSuffix = UUID.randomUUID().toString().take(6).lowercase()
+                val newCafeId = if (cleanPrefix.isNotBlank()) "cafe_${cleanPrefix}_$randomSuffix" else "cafe_$randomSuffix"
+
                 val user = repository.registerUser(
                     pendingName,
                     pendingEmail,
                     pendingPass,
                     pendingRole,
-                    CafeRepository.DEFAULT_CAFE_ID
+                    newCafeId
                 )
-                if (pendingCafeName.isNotBlank()) {
-                    repository.saveCafeProfile(
-                        CafeEntity(
-                            id = CafeRepository.DEFAULT_CAFE_ID,
-                            name = pendingCafeName,
-                            logoIconName = "coffee",
-                            ownerEmail = pendingEmail
-                        )
-                    )
+                val cafeName = pendingCafeName.ifBlank { "كافيه $pendingName" }
+                val newCafe = CafeEntity(
+                    id = newCafeId,
+                    name = cafeName,
+                    logoIconName = "coffee",
+                    ownerEmail = pendingEmail
+                )
+                repository.saveCafeProfile(newCafe)
+                repository.seedNewCafeDefaults(newCafeId, cafeName)
+
+                // Sync new cafe profile to Firestore so web page works immediately
+                firestoreSync.syncCafeProfileToFirestore(newCafeId, cafeName, "coffee")
+                val starterItems = repository.getAllMenuItems(newCafeId).firstOrNull() ?: emptyList()
+                if (starterItems.isNotEmpty()) {
+                    firestoreSync.seedLocalItemsToFirestore(newCafeId, starterItems)
                 }
+
                 pendingOtpCode = null // consume code
                 launch(Dispatchers.Main) {
                     _currentUser.value = user
@@ -551,7 +587,26 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
     fun register(name: String, email: String, pass: String, role: String, onSuccess: (UserAccountEntity) -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val user = repository.registerUser(name.trim(), email.trim(), pass.trim(), role, CafeRepository.DEFAULT_CAFE_ID)
+                val cleanPrefix = name.filter { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' }.lowercase().take(6)
+                val randomSuffix = UUID.randomUUID().toString().take(6).lowercase()
+                val newCafeId = if (cleanPrefix.isNotBlank()) "cafe_${cleanPrefix}_$randomSuffix" else "cafe_$randomSuffix"
+                val cafeName = "كافيه $name"
+
+                val user = repository.registerUser(name.trim(), email.trim(), pass.trim(), role, newCafeId)
+                val newCafe = CafeEntity(
+                    id = newCafeId,
+                    name = cafeName,
+                    logoIconName = "coffee",
+                    ownerEmail = email.trim()
+                )
+                repository.saveCafeProfile(newCafe)
+                repository.seedNewCafeDefaults(newCafeId, cafeName)
+                firestoreSync.syncCafeProfileToFirestore(newCafeId, cafeName, "coffee")
+                val starterItems = repository.getAllMenuItems(newCafeId).firstOrNull() ?: emptyList()
+                if (starterItems.isNotEmpty()) {
+                    firestoreSync.seedLocalItemsToFirestore(newCafeId, starterItems)
+                }
+
                 launch(Dispatchers.Main) {
                     _currentUser.value = user
                     onSuccess(user)
@@ -576,7 +631,7 @@ class CafeViewModel(application: Application) : AndroidViewModel(application) {
             passwordHash = "",
             name = "زبون طاولة #$tableNum",
             role = "CUSTOMER",
-            cafeId = CafeRepository.DEFAULT_CAFE_ID
+            cafeId = activeCafeId.value
         )
     }
 

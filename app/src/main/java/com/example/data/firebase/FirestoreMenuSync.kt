@@ -37,7 +37,7 @@ class FirestoreMenuSync(
      * Starts listening to Firestore changes for menu items and syncing them to the local Room database.
      */
     fun startListening(cafeId: String) {
-        if (menuListener != null) return
+        stopListening()
 
         try {
             val menuRef = firestore.collection(COLLECTION_CAFES)
